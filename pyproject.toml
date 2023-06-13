@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "causalAssembly"
+authors = [
+    { name = "Konstantin Göbler", email = "konstantin.goebler@de.bosch.com" },
+]
+description = "Benchmarking and generating production line data"
+dynamic = ["version"]
+dependencies = [
+    "sympy",
+    "networkx",
+    "scipy",
+    "numpy",
+    "pandas",
+    "pydantic",
+    "distinctipy",
+    "matplotlib",
+    "rpy2",
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "mike",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "ruff",
+    "pip-tools",
+    "pre-commit",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+include = ["causalAssembly*"]
+
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+
+[tool.ruff]
+
+select = ["A", "E", "F", "I"]
+ignore = []
+
+fixable = ["A", "B", "C", "D", "E", "F", "I"]
+unfixable = []
+
+line-length = 100
+
+target-version = "py310"
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+per-file-ignores = {}
