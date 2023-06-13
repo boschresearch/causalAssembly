@@ -25,7 +25,7 @@ The package can be installed as follows
 
 ## <a name="using">How to use</a>
 
-This is how causalAssembly's functionality may be used. Be sure to read the [documentation](#documentation) for more in-depth details and usages.
+This is how causalAssembly's functionality may be used. Be sure to read the [documentation](https://boschresearch.github.io/causalAssembly/) for more in-depth details and usages.
 
 In case you want to train a distributional random forests yourself,
 you need an R installation as well as the corresponding [drf](https://cran.r-project.org/web/packages/drf/index.html) R package.
