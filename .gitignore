@@ -1,0 +1,56 @@
+# Temporary and binary files
+*~
+*.py[cod]
+*.so
+*.cfg
+!setup.cfg
+*.orig
+*.log
+*.pot
+*/__pycache__
+__pycache__/*
+.cache/*
+.pytest_cache/*
+.*.swp
+.DS_store
+*/.ipynb_checkpoints/*
+*.pkl
+
+# Project files
+.ropeproject
+.project
+.pydevproject
+.settings
+.idea
+
+# Package files
+*.egg
+*.eggs/
+.installed.cfg
+*.egg-info
+*.egg-info/
+
+# Unittest and coverage
+htmlcov/*
+.coverage*
+.tox
+junit.xml
+coverage.xml
+pytest.ini
+
+# Build and docs folder/files
+build/*
+dist/*
+sdist/*
+docs/api/*
+docs/_build/*
+cover/*
+MANIFEST
+site/*
+production_line/*
+experiments/*
+scribbling/*
+data/drfs/*
+
+# VSCode environment settings
+.vscode
