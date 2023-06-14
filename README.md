@@ -134,7 +134,7 @@ In general we use pytest and the test suite can be executed locally via
 
 ## <a name="contributing">How to contribute?</a>
 
-Please have a look at our [contribution guide](./CONTRIBUTING.md).
+Please feel free to contact one of the authors in case you wish to contribute. 
 
 ## <a name="3rd-party-licenses">Third-Party Licenses</a>
 
