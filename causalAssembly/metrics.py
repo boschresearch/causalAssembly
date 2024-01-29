@@ -36,9 +36,7 @@ class DAGmetrics:
         nodelist: list = None,
     ):
         if not isinstance(truth, nx.DiGraph | pd.DataFrame | np.ndarray):
-            raise TypeError(
-                "Ground truth graph has to be one of the permitted classes."
-            )
+            raise TypeError("Ground truth graph has to be one of the permitted classes.")
 
         if not isinstance(est, nx.DiGraph | pd.DataFrame | np.ndarray):
             raise TypeError("Estimated graph has to be one of the permitted classes")
@@ -61,10 +59,7 @@ class DAGmetrics:
         gscore: float
             max(0, (TP-FP))/(TP+FN)
         """
-        assert (
-            self.est.shape == self.truth.shape
-            and self.est.shape[0] == self.est.shape[1]
-        )
+        assert self.est.shape == self.truth.shape and self.est.shape[0] == self.est.shape[1]
         TP = np.where((self.est + self.truth) == 2, 1, 0).sum(axis=1).sum()
         TP_FP = self.est.sum(axis=1).sum()
         FP = TP_FP - TP

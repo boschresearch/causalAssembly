@@ -120,7 +120,5 @@ def fit_drf(prod_object: ProductionLineGraph | ProcessCell, data: pd.DataFrame):
             drf_object.fit(X, Y)
             drf_dict[node] = drf_object
         else:
-            raise ValueError(
-                "Unexpected behavior in DRF. Check whether data and DAG match?"
-            )
+            raise ValueError("Unexpected behavior in DRF. Check whether data and DAG match?")
     return drf_dict

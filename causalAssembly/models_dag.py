@@ -27,17 +27,14 @@ import numpy as np
 import pandas as pd
 import requests
 from matplotlib.collections import PatchCollection
-from matplotlib.patches import (
-    BoxStyle,
-    FancyBboxPatch,
-)
-from pydantic import BaseModel
+from matplotlib.patches import BoxStyle, FancyBboxPatch
+from networkx.readwrite import json_graph
+
+# from pydantic import BaseModel
 from scipy.stats import gaussian_kde
 
-from causalAssembly.dag_utils import (
-    _bootstrap_sample,
-    tuples_from_cartesian_product,
-)
+from causalAssembly.dag_utils import _bootstrap_sample, tuples_from_cartesian_product
+from causalAssembly.pdag import PDAG, dag2cpdag
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +58,7 @@ def _sample_from_drf(
     for node in prod_object.causal_order:
         if isinstance(prod_object.drf[node], gaussian_kde):
             # Node has no parents, generate a sample using bootstrapping
+            #
             if smoothed:
                 sample_dict[node] = prod_object.drf[node].resample(
                     size=size, seed=prod_object.random_state
@@ -74,6 +72,7 @@ def _sample_from_drf(
         else:
             parents = prod_object.parents(of_node=node)
             new_data = pd.DataFrame({col: sample_dict[col] for col in parents})
+            # new_data = pd.DataFrame(sample_dict[parents])
             forest = prod_object.drf[node]
             sample_dict[node] = forest.produce_sample(
                 newdata=new_data, random_state=prod_object.random_state
@@ -100,12 +99,10 @@ class ProcessCell:
         self.name = name
         self.graph: nx.DiGraph = nx.DiGraph()
 
-        self.description: str = ""
+        self.description: str = ""  # description of the cell.
 
-        self.__module_prefix = "M"
-        self.modules: dict[
-            str, nx.DiGraph
-        ] = dict()
+        self.__module_prefix = "M"  # M01 vs M1?
+        self.modules: dict[str, nx.DiGraph] = dict()  # {'M1': nx.DiGraph, 'M2': nx.DiGraph}
         self.module_connectors: list[tuple] = list()
 
         self.is_eol = False
@@ -245,18 +242,17 @@ class ProcessCell:
 
         nx.set_node_attributes(
             graph, False, NodeAttributes.HIDDEN
-        )
+        )  # set all non-hidden -> visible by default
         if isinstance(mark_hidden, list):
             mark_hidden_renamed = [
-                f"{self.name}_{next_module_prefix}_{new_name}"
-                for new_name in mark_hidden
+                f"{self.name}_{next_module_prefix}_{new_name}" for new_name in mark_hidden
             ]
-            overwrite_dict = {
-                node: {NodeAttributes.HIDDEN: True} for node in mark_hidden_renamed
-            }
+            overwrite_dict = {node: {NodeAttributes.HIDDEN: True} for node in mark_hidden_renamed}
             nx.set_node_attributes(
                 graph, values=overwrite_dict
-            )
+            )  # only overwrite the ones specified
+        # TODO relabel attributes, i.e. name of the parents has changed now?
+        # .update_attributes or so or keep and remove prefixes in bayesian network creation?
         self.graph = nx.compose(self.graph, graph)
 
         return next_module_prefix
@@ -275,8 +271,7 @@ class ProcessCell:
             nx.set_node_attributes(graph, False, NodeAttributes.ALLOW_IN_EDGES)
 
         node_renaming_dict = {
-            old_node_name: f"{self.name}_{old_node_name}"
-            for old_node_name in graph.nodes()
+            old_node_name: f"{self.name}_{old_node_name}" for old_node_name in graph.nodes()
         }
         graph = nx.relabel_nodes(graph, node_renaming_dict)
 
@@ -318,9 +313,7 @@ class ProcessCell:
         all_forward_edges = itertools.combinations(causal_order, 2)
         edges = np.array(list(all_forward_edges))
 
-        random_choice = self.random_state.choice(
-            [False, True], p=[1 - p, p], size=edges.shape[0]
-        )
+        random_choice = self.random_state.choice([False, True], p=[1 - p, p], size=edges.shape[0])
 
         dag.add_edges_from(edges[random_choice])
         return dag
@@ -345,8 +338,7 @@ class ProcessCell:
         node_prefix_m2 = f"{self.name}_{m2}"
 
         new_edges = [
-            (f"{node_prefix_m1}_{edge[0]}", f"{node_prefix_m2}_{edge[1]}")
-            for edge in edges
+            (f"{node_prefix_m1}_{edge[0]}", f"{node_prefix_m2}_{edge[1]}") for edge in edges
         ]
 
         [self.module_connectors.append(edge) for edge in new_edges]
@@ -373,16 +365,14 @@ class ProcessCell:
             graph=self.graph, node_attributes_to_filter=NodeAttributes.ALLOW_IN_EDGES
         )
 
-        arrow_tail_candidates = [
-            node for node in self.nodes if node not in arrow_head_candidates
-        ]
+        arrow_tail_candidates = [node for node in self.nodes if node not in arrow_head_candidates]
 
         potential_edges = tuples_from_cartesian_product(
             l1=arrow_tail_candidates, l2=arrow_head_candidates
         )
         num_choices = int(np.ceil(sparsity * len(potential_edges)))
 
-        # choose edges uniformly according to sparsity parameter
+        ### choose edges uniformly according to sparsity parameter
         chosen_edges = [
             potential_edges[i]
             for i in self.random_state.choice(
@@ -433,13 +423,9 @@ class ProcessCell:
         m2_nodes = set(self.modules.get(m2).nodes())
 
         if not source_nodes.issubset(m1_nodes):
-            raise ValueError(
-                f"source nodes: {source_nodes} not include in {m1}s nodes: {m1_nodes}"
-            )
+            raise ValueError(f"source nodes: {source_nodes} not include in {m1}s nodes: {m1_nodes}")
         if not target_nodes.issubset(m2_nodes):
-            raise ValueError(
-                f"target nodes: {target_nodes} not include in {m2}s nodes: {m2_nodes}"
-            )
+            raise ValueError(f"target nodes: {target_nodes} not include in {m2}s nodes: {m2_nodes}")
 
     def next_module_prefix(self) -> str:
         """Return the next module prefix, e.g.
@@ -477,6 +463,9 @@ class ProcessCell:
 
         return list(available_attributes)
 
+    def to_cpdag(self) -> PDAG:
+        return dag2cpdag(dag=self.graph)
+
     def show(
         self,
         meta_desc: str = "",
@@ -509,12 +498,10 @@ class ProcessCell:
             vmin=-0.2,
             vmax=1,
             node_color=[
-                (d + 10) / (max_in_degree + 10)
-                for _, d in self.graph.in_degree(self.nodes)
+                (d + 10) / (max_in_degree + 10) for _, d in self.graph.in_degree(self.nodes)
             ],
             node_size=[
-                500 * (d + 1) / (max_out_degree + 1)
-                for _, d in self.graph.out_degree(self.nodes)
+                500 * (d + 1) / (max_out_degree + 1) for _, d in self.graph.out_degree(self.nodes)
             ],
         )
 
@@ -676,9 +663,7 @@ def get_arrow_head_candidates_from_graph(
     """
     arrow_head_candidates = [
         node
-        for node, allowed in nx.get_node_attributes(
-            graph, node_attributes_to_filter
-        ).items()
+        for node, allowed in nx.get_node_attributes(graph, node_attributes_to_filter).items()
         if allowed is True
     ]
 
@@ -690,7 +675,8 @@ def get_arrow_head_candidates_from_graph(
 
     if len(arrow_head_candidates) == 0 and len(nodes_without_attributes) == 0:
         logger.warning(
-            f"None of the nodes in cell {graph}" "are allowed to have in-edges."
+            f"None of the nodes in cell {graph} \
+            are allowed to have in-edges."
         )
 
     arrow_head_candidates.extend(nodes_without_attributes)
@@ -753,6 +739,9 @@ class ProductionLineGraph:
         work.
 
         Returns nx.DiGraph
+
+        -------
+
         """
         g = nx.DiGraph()
         for cell in self.cells.values():
@@ -762,7 +751,8 @@ class ProductionLineGraph:
 
         if not nx.is_directed_acyclic_graph(g):
             raise TypeError(
-                "There are cylces in the graph, " "this is not supposed to happen."
+                "There are cycles in the graph, \
+                this is not supposed to happen."
             )
 
         return g
@@ -823,6 +813,36 @@ class ProductionLineGraph:
         """
         return nx.to_pandas_adjacency(self.graph, weight=None)
 
+    def _get_union_graph(self) -> nx.DiGraph:
+        if not self.cells:
+            raise AssertionError("Your pline has no cells. Within has no meaning.")
+        union_graph = nx.DiGraph()
+        for _, station_graph in self.cells.items():
+            union_graph = nx.union(union_graph, station_graph.graph)
+        return union_graph
+
+    @property
+    def within_adjacency(self) -> pd.DataFrame:
+        """Returns adjacency matrix ignoring all
+        between-cell edges.
+
+        Returns:
+            pd.DataFrame: adjacency matrix
+        """
+        union_graph = self._get_union_graph()
+        return nx.to_pandas_adjacency(union_graph)
+
+    @property
+    def between_adjacency(self) -> pd.DataFrame:
+        """Returns adjacency matrix ignoring all
+        within-cell edges.
+
+        Returns:
+            pd.DataFrame: adjacency matrix
+        """
+        union_graph = self._get_union_graph()
+        return nx.to_pandas_adjacency(nx.difference(self.graph, union_graph))
+
     @property
     def causal_order(self) -> list[str]:
         """Returns the causal order of the current graph.
@@ -843,6 +863,9 @@ class ProductionLineGraph:
             list[str]: parent set.
         """
         return list(self.graph.predecessors(of_node))
+
+    def to_cpdag(self) -> PDAG:
+        return dag2cpdag(dag=self.graph)
 
     def get_nodes_of_station(self, station_name: str) -> list:
         """Returns nodes in chosen Station.
@@ -875,9 +898,7 @@ class ProductionLineGraph:
 
             return cell
 
-        raise ValueError(
-            f"A cell with name: {cell.name} is already in the Production Line."
-        )
+        raise ValueError(f"A cell with name: {cell.name} is already in the Production Line.")
 
     def new_cell(self, name: str = None, is_eol: bool = False) -> ProcessCell:
         """Add a new cell to the production line.
@@ -937,7 +958,7 @@ class ProductionLineGraph:
                         rng=self.random_state,
                     )
 
-                    prob_it += 1
+                    prob_it += 1  # FIXME: a bit ugly and hard to read
                     self.cell_connector_edges.extend(chosen_edges)
 
             if eol_cell := self.eol_cell:
@@ -967,9 +988,7 @@ class ProductionLineGraph:
             # make sure its sorted
             sorted_graph = nx.DiGraph()
             sorted_graph.add_nodes_from(
-                sorted(
-                    self.cells[station].nodes, key=lambda x: int(x.rpartition("_")[2])
-                )
+                sorted(self.cells[station].nodes, key=lambda x: int(x.rpartition("_")[2]))
             )
             sorted_graph.add_edges_from(self.cells[station].edges)
             copy_graph.cells[station].graph = sorted_graph
@@ -995,19 +1014,17 @@ class ProductionLineGraph:
             ProductionLineGraph: ground_truth for cells and line.
         """
 
-        gt_response = requests.get(DATA_GROUND_TRUTH)
+        gt_response = requests.get(DATA_GROUND_TRUTH, timeout=10)
         ground_truth = json.loads(gt_response.text)
 
-        assembly_line = nx.json_graph.adjacency_graph(ground_truth)
+        assembly_line = json_graph.adjacency_graph(ground_truth)
 
         stations = ["Station1", "Station2", "Station3", "Station4", "Station5"]
         ground_truth_line = ProductionLineGraph()
 
         for station in stations:
             ground_truth_line.new_cell(station)
-            station_nodes = [
-                node for node in assembly_line.nodes if node.startswith(station)
-            ]
+            station_nodes = [node for node in assembly_line.nodes if node.startswith(station)]
             station_subgraph = nx.subgraph(assembly_line, station_nodes)
             # make sure its sorted
             sorted_graph = nx.DiGraph()
@@ -1017,9 +1034,7 @@ class ProductionLineGraph:
             sorted_graph.add_edges_from(station_subgraph.edges)
             ground_truth_line.cells[station].graph = sorted_graph
 
-        between_cell_edges = nx.difference(
-            assembly_line, ground_truth_line.graph
-        ).edges()
+        between_cell_edges = nx.difference(assembly_line, ground_truth_line.graph).edges()
         ground_truth_line.connect_across_cells_manually(edges=between_cell_edges)
         return ground_truth_line
 
@@ -1053,9 +1068,7 @@ class ProductionLineGraph:
             for cellname, cols in cell_mapper.items():
                 pline.new_cell(name=cellname)
                 cell_graph = nx.induced_subgraph(g, cols)
-                pline.cells[cellname].input_cellgraph_directly(
-                    cell_graph, allow_in_edges=True
-                )
+                pline.cells[cellname].input_cellgraph_directly(cell_graph, allow_in_edges=True)
         relabel_dict = {}
         for cellname, cols in cell_mapper.items():
             for col in cols:
@@ -1141,9 +1154,7 @@ class ProductionLineGraph:
         """
         return [
             node
-            for node, hidden in nx.get_node_attributes(
-                self.graph, NodeAttributes.HIDDEN
-            ).items()
+            for node, hidden in nx.get_node_attributes(self.graph, NodeAttributes.HIDDEN).items()
             if hidden is True
         ]
 
@@ -1154,9 +1165,9 @@ class ProductionLineGraph:
     def eol_cell(self) -> ProcessCell | None:
         """
 
-        Returns:
-            ProcessCell: the EOL cell
-                (if any single cell has attr .is_eol = True), otherwise returns None
+        Returns ProcessCell: the EOL cell
+            (if any single cell has attr .is_eol = True), otherwise returns None
+        -------
 
         """
         for cell in self.cells.values():
@@ -1189,6 +1200,8 @@ class ProductionLineGraph:
 
             for pairs in mediators:
                 amat_visible.loc[pairs] = 1
+
+            # reverse = lambda tuples: tuples[::-1]
 
             def reverse(tuples):
                 """
@@ -1234,9 +1247,7 @@ class ProductionLineGraph:
         max_in_degree = max([d for _, d in self.graph.in_degree()])
         max_out_degree = max([d for _, d in self.graph.out_degree()])
 
-        for i, (station_name, meta_desc) in enumerate(
-            zip(self.cell_order, meta_description)
-        ):
+        for i, (station_name, meta_desc) in enumerate(zip(self.cell_order, meta_description)):
             pos.update(
                 self.cells[station_name]._plot_cellgraph(
                     ax=ax,
@@ -1246,15 +1257,11 @@ class ProductionLineGraph:
                     center=np.array([8 * i, 0]),
                     node_color=[
                         (d + 10) / (max_in_degree + 10)
-                        for _, d in self.graph.in_degree(
-                            self.get_nodes_of_station(station_name)
-                        )
+                        for _, d in self.graph.in_degree(self.get_nodes_of_station(station_name))
                     ],
                     node_size=[
                         500 * (d + 1) / (max_out_degree + 1)
-                        for _, d in self.graph.out_degree(
-                            self.get_nodes_of_station(station_name)
-                        )
+                        for _, d in self.graph.out_degree(self.get_nodes_of_station(station_name))
                     ],
                 )
             )
@@ -1280,6 +1287,8 @@ class ProductionLineGraph:
             raise AttributeError(f"{attrname} is not a valid attribute (cell name?)")
         return self.cells[attrname]
 
+    # https://docs.python.org/3/library/pickle.html#pickle-protocol
+    # TODO why is .cells enough, are the other member vars directly pickable?
     def __getstate__(self):
         return (self.__dict__, self.cells)
 
@@ -1319,21 +1328,15 @@ class ProductionLineGraph:
         any_paths = []
         visible = self.visible_nodes()
         hidden_all = self.hidden_nodes()
-        confounders = [
-            node.pop() for _, node in self._pairs_with_hidden_confounders().items()
-        ]
+        confounders = [node.pop() for _, node in self._pairs_with_hidden_confounders().items()]
         hidden = [node for node in hidden_all if node not in confounders]
         for i, _ in enumerate(visible):
             for j, _ in enumerate(visible):
-                for path in sorted(
-                    nx.all_simple_paths(self.graph, visible[i], visible[j])
-                ):
+                for path in sorted(nx.all_simple_paths(self.graph, visible[i], visible[j])):
                     any_paths.append(path)
 
         pairs_with_hidden_mediators = [
-            (ls[0], ls[-1])
-            for ls in any_paths
-            if np.all(np.isin(ls[1:-1], hidden)) and len(ls) > 2
+            (ls[0], ls[-1]) for ls in any_paths if np.all(np.isin(ls[1:-1], hidden)) and len(ls) > 2
         ]
 
         return pairs_with_hidden_mediators
@@ -1361,7 +1364,7 @@ class ProductionLineGraph:
                     ),
                     axis=None,
                 )
-            ):
+            ):  # annoying way of doing this. List comparison doesn't allow elementwise eval
                 confounder = ancestors1.intersection(ancestors2)
                 if confounder:  # only populate if set is non-empty
                     confounder_pairs[(node1, node2)] = confounder
@@ -1376,4 +1379,5 @@ class ProductionLineGraph:
                 if direct_confounder:
                     confounder_pairs[(node1, node2)] = direct_confounder
 
+        return confounder_pairs
         return confounder_pairs

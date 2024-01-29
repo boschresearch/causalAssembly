@@ -15,18 +15,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import math
 import os
 import pickle
-from unittest.mock import patch
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
 
-from causalAssembly.models_dag import (
-    NodeAttributes,
-    ProcessCell,
-    ProductionLineGraph,
-)
+from causalAssembly.models_dag import NodeAttributes, ProcessCell, ProductionLineGraph
 
 
 class TestProcessCell:
@@ -161,7 +156,7 @@ class TestProcessCell:
         cyclic_graph.add_nodes_from(["A", "B", "C", "D", "E"])
         cyclic_graph.add_edges_from([("A", "B"), ("B", "C"), ("C", "A")])
 
-        randomdag = nx.gnp_random_graph(n=100, p=0.0, seed=1)
+        randomdag = nx.gnp_random_graph(n=100, p=0.0, seed=1, directed=True)
         c.add_module(graph=cyclic_graph, allow_in_edges=True)
         c.add_module(graph=randomdag, allow_in_edges=False)
 
@@ -446,9 +441,7 @@ class TestProductionLineGraph:
 
         ## pairs with hidden confounder should be
         # {(C2_M1_1, C2_M1_2): C1_M1_3}
-        assert p._pairs_with_hidden_confounders() == {
-            ("C2_M1_1", "C2_M1_2"): ["C1_M1_3"]
-        }
+        assert p._pairs_with_hidden_confounders() == {("C2_M1_1", "C2_M1_2"): ["C1_M1_3"]}
 
         assert p.ground_truth_visible.loc[("C2_M1_1", "C2_M1_2")] == 2
         assert p.ground_truth_visible.loc[("C2_M1_2", "C2_M1_1")] == 2
@@ -547,3 +540,66 @@ class TestProductionLineGraph:
         assert set(pline.Station1.edges) == set(copyline.Station1.edges)
         assert set(pline.Station2.edges) == set(copyline.Station2.edges)
         assert pline.cell_order == copyline.cell_order
+
+    def test_within_edges_with_empty_cells_raises_error(self):
+        # Setup
+        pline = ProductionLineGraph()
+
+        # Act
+        with pytest.raises(AssertionError):
+            pline.within_adjacency
+
+    def test_between_edges_with_empty_cells_raises_error(self):
+        # Setup
+        pline = ProductionLineGraph()
+
+        # Act
+        with pytest.raises(AssertionError):
+            print(pline.between_adjacency)
+
+    def test_within_edges_adjacency_matrix(self):
+        # Setup
+        nx_graph = nx.DiGraph(
+            [("1", "2"), ("1", "3"), ("1", "4"), ("2", "5"), ("2", "6"), ("5", "6")]
+        )
+        cell_mapper = {"cell1": ["1", "2", "3", "4"], "cell2": ["5", "6"]}
+        pline = ProductionLineGraph.from_nx(g=nx_graph, cell_mapper=cell_mapper)
+
+        # Act
+        within_amat = pline.within_adjacency
+
+        # Assert
+
+        pd.testing.assert_frame_equal(
+            left=within_amat.loc[pline.cell1.nodes, pline.cell1.nodes],
+            right=pline.cell1.ground_truth,
+        )
+        pd.testing.assert_frame_equal(
+            left=within_amat.loc[pline.cell2.nodes, pline.cell2.nodes],
+            right=pline.cell2.ground_truth,
+        )
+
+        assert (
+            within_amat.loc["cell1_2", :].sum() == 0
+            and pline.ground_truth.loc["cell1_2", :].sum() != 0
+        )
+
+    def test_between_edges_adjacency_matrix(self):
+        # Setup
+        nx_graph = nx.DiGraph(
+            [("1", "2"), ("1", "3"), ("1", "4"), ("2", "5"), ("2", "6"), ("5", "6")]
+        )
+        cell_mapper = {"cell1": ["1", "2", "3", "4"], "cell2": ["5", "6"]}
+        pline = ProductionLineGraph.from_nx(g=nx_graph, cell_mapper=cell_mapper)
+
+        # Act
+        between_amat = pline.between_adjacency
+
+        # Assert
+
+        assert (
+            between_amat.loc["cell1_2", :].sum() == 2
+            and pline.ground_truth.loc["cell1_2", :].sum() == 2
+        )
+        assert between_amat.loc[pline.cell1.nodes, pline.cell1.nodes].sum().sum() == 0
+        assert between_amat.loc[pline.cell2.nodes, pline.cell2.nodes].sum().sum() == 0
