@@ -4,7 +4,6 @@
 #
 #    pip-compile --allow-unsafe --annotation-style=line --extra=dev --no-emit-index-url --no-emit-trusted-host --output-file=requirements_dev.txt pyproject.toml
 #
-annotated-types==0.6.0    # via pydantic
 babel==2.14.0             # via mkdocs-material
 build==1.0.3              # via pip-tools
 certifi==2023.11.17       # via requests
@@ -15,7 +14,6 @@ click==8.1.7              # via mkdocs, mkdocstrings, pip-tools
 colorama==0.4.6           # via griffe, mkdocs-material
 contourpy==1.2.0          # via matplotlib
 cycler==0.12.1            # via matplotlib
-distinctipy==1.3.4        # via causalAssembly (pyproject.toml)
 distlib==0.3.8            # via virtualenv
 exceptiongroup==1.2.0     # via pytest
 filelock==3.13.1          # via virtualenv
@@ -43,7 +41,7 @@ mkdocstrings-python==1.8.0  # via mkdocstrings
 mpmath==1.3.0             # via sympy
 networkx==3.2.1           # via causalAssembly (pyproject.toml)
 nodeenv==1.8.0            # via pre-commit
-numpy==1.26.3             # via causalAssembly (pyproject.toml), contourpy, distinctipy, matplotlib, pandas, scipy
+numpy==1.26.3             # via causalAssembly (pyproject.toml), contourpy, matplotlib, pandas, scipy
 packaging==23.2           # via build, matplotlib, mkdocs, pytest
 paginate==0.5.6           # via mkdocs-material
 pandas==2.2.0             # via causalAssembly (pyproject.toml)
@@ -54,8 +52,6 @@ platformdirs==4.1.0       # via mkdocs, mkdocstrings, virtualenv
 pluggy==1.4.0             # via pytest
 pre-commit==3.6.0         # via causalAssembly (pyproject.toml)
 pycparser==2.21           # via cffi
-pydantic==2.5.3           # via causalAssembly (pyproject.toml)
-pydantic-core==2.14.6     # via pydantic
 pygments==2.17.2          # via mkdocs-material
 pymdown-extensions==10.7  # via mkdocs-material, mkdocstrings
 pyparsing==3.1.1          # via matplotlib, mike
@@ -73,7 +69,6 @@ scipy==1.12.0             # via causalAssembly (pyproject.toml)
 six==1.16.0               # via python-dateutil
 sympy==1.12               # via causalAssembly (pyproject.toml)
 tomli==2.0.1              # via build, pip-tools, pyproject-hooks, pytest
-typing-extensions==4.9.0  # via pydantic, pydantic-core
 tzdata==2023.4            # via pandas
 tzlocal==5.2              # via rpy2
 urllib3==2.1.0            # via requests

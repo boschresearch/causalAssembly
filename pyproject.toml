@@ -17,8 +17,6 @@ dependencies = [
     "scipy",
     "numpy",
     "pandas",
-    "pydantic",
-    "distinctipy",
     "matplotlib",
     "rpy2",
     "requests",

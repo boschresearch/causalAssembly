@@ -29,8 +29,6 @@ import requests
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import BoxStyle, FancyBboxPatch
 from networkx.readwrite import json_graph
-
-# from pydantic import BaseModel
 from scipy.stats import gaussian_kde
 
 from causalAssembly.dag_utils import _bootstrap_sample, tuples_from_cartesian_product
