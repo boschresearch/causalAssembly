@@ -5,10 +5,10 @@
 This repo provides details regarding $\texttt{causalAssembly}$, a causal discovery benchmark data tool based on complex production data.
 
 ## Authors
-* [Konstantin Goebler (TUM, CC/MFD2)](mailto:konstantin.goebler@de.bosch.com)
-* [Steffen Sonntag (CR/APT4)](mailto:steffen.sonntag@de.bosch.com)
+* [Konstantin Goebler](mailto:konstantin.goebler@de.bosch.com)
+* [Steffen Sonntag](mailto:steffen.sonntag@de.bosch.com)
 
-**Maintainer*:* [Martin Roth (CC/MFD2)](mailto:martin.roth2@de.bosch.com)
+**Maintainer*:* [Konstantin Goebler](mailto:konstantin.goebler@de.bosch.com)
 
 ## Table of contents
 
@@ -70,26 +70,37 @@ station3_sample = assembly_line.Station3.sample_from_drf(size=n_select)
 ### <a name="how-to-semisynthesize">How to semisynthesize</a>
 
 In order to generate semisynthetic data for data sources outside the manufacturing
-context, the class `DAG` may be used. We showcase all necessary steps in the example below using data generated with the GeneNetWeaver [[3](#3)]. Note, that the `cdt` package is needed to get easy access to the DREAM4 data.
+context, the class `DAG` may be used. We showcase all necessary steps in the example below using the well-known Sachs [[3](#3)] dataset.
+Note, that the `cdt` package is only needed to get easy access to data and corresponding ground truth.
 
 ```python
+import networkx as nx
 from cdt.data import load_dataset
 
+from causalAssembly.dag import DAG
 from causalAssembly.drf_fitting import fit_drf
-from causalAssembly.models_dag import DAG
 
 # load data set and available ground truth
-s_data, s_graph = load_dataset("dream4-5")
+s_data, s_graph = load_dataset("sachs")
 
-# convert to DAG instance
-dream_dag = DAG.from_nx(s_graph)
+# take subset for faster computation
+s_data = s_data.sample(100, random_state=42)
 
-# fit DRF to the conditional distributions implied by
-# the factorization over <s_graph>
-dream_dag.drf = fit_drf(graph=dream_dag, data=s_data)
+print(nx.is_directed_acyclic_graph(s_graph))
+cycles = nx.find_cycle(s_graph)
+s_graph.remove_edge(*cycles[0])
 
-# sample new data from the trained DRF
-dream_benchmark_data = dream_dag.sample_from_drf(size=50)
+if nx.is_directed_acyclic_graph(s_graph):
+    # convert to DAG instance
+    sachs_dag = DAG.from_nx(s_graph)
+
+    # fit DRF to the conditional distributions implied by
+    # the factorization over <s_graph>
+    sachs_dag.drf = fit_drf(graph=sachs_dag, data=s_data)
+
+    # sample new data from the trained DRFs
+    dream_benchmark_data = sachs_dag.sample_from_drf(size=50)
+    print(dream_benchmark_data.head())
 
 ```
 
@@ -191,7 +202,7 @@ test_fcm.show_mutilated_dag()
 Gamella, J.L, Taeb, A., Heinze-Deml, C., & Bühlmann, P. (2022). Characterization and greedy learning of Gaussian structural causal models under unknown noise interventions. arXiv preprint arXiv:2211.14897, 2022.
 
 <a id="3">[3]</a>
-Marbach D, Prill RJ, Schaffter T, Mattiussi C, Floreano D, and Stolovitzky G. Revealing strengths and weaknesses of methods for gene network inference. PNAS, 107(14):6286-6291, 2010.
+Sachs, K., Perez, O., Pe'er, D., Lauffenburger, D. A., & Nolan, G. P. (2005). Causal protein-signaling networks derived from multiparameter single-cell data. Science, 308(5721), 523-529.
 
 ## <a name="testing">How to test</a>
 

@@ -6,7 +6,7 @@ Follow these instructions in order to reproduce the benchmarks conducted in the 
 Data for Benchmarking Causal Discovery.
 
 ## Authors
-* [Konstantin Goebler (TUM, CC/MFD2)](mailto:konstantin.goebler@de.bosch.com)
+* [Konstantin Goebler (TUM, VM/MFD2)](mailto:konstantin.goebler@de.bosch.com)
 
 ## Table of contents
 
@@ -35,3 +35,4 @@ You may need to adjust the paths to where you stored ground truth and data set. 
 | [causal-learn](https://github.com/py-why/causal-learn)                       | [MIT License](https://github.com/py-why/causal-learn/blob/main/LICENSE)                | Dependency |
 | [lingam](https://github.com/cdt15/lingam)                                    | [MIT License](https://github.com/cdt15/lingam/blob/master/LICENSE)                     | Dependency |
 | [varsortability](https://github.com/Scriddie/Varsortability)                 | [MIT License](https://github.com/Scriddie/Varsortability/blob/main/LICENSE)            | Reference  |
+| [dodiscover](https://github.com/py-why/dodiscover/tree/main)                 | [MIT License](https://github.com/py-why/dodiscover/blob/main/LICENSE)                  | Dependency |

@@ -22,6 +22,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from scipy.stats import gaussian_kde
 
+from causalAssembly.dag import DAG
 from causalAssembly.models_dag import ProcessCell, ProductionLineGraph
 
 rpy2.robjects.numpy2ri.activate()
@@ -86,7 +87,7 @@ class DRF:
         return sample[:, 0, 0]
 
 
-def fit_drf(prod_object: ProductionLineGraph | ProcessCell, data: pd.DataFrame):
+def fit_drf(graph: ProductionLineGraph | ProcessCell | DAG, data: pd.DataFrame):
     """Fit distributional random forests to the
     factorization implied by the current graph
     Args:
@@ -100,15 +101,15 @@ def fit_drf(prod_object: ProductionLineGraph | ProcessCell, data: pd.DataFrame):
     """
     tempdata = data.copy()
 
-    if set(prod_object.nodes).issubset(tempdata.columns):
-        tempdata = tempdata[prod_object.nodes]
+    if set(graph.nodes).issubset(tempdata.columns):
+        tempdata = tempdata[graph.nodes]
 
     else:
         raise ValueError("Data columns don't match node names.")
 
     drf_dict = {}
-    for node in prod_object.nodes:
-        parents = prod_object.parents(of_node=node)
+    for node in graph.nodes:
+        parents = graph.parents(of_node=node)
         if not parents:
             drf_dict[node] = gaussian_kde(tempdata[node].to_numpy())
         elif parents:
