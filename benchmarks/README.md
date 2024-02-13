@@ -15,9 +15,12 @@ Data for Benchmarking Causal Discovery.
 
 ## <a name="installing">How to install</a>
 
-To install the required dependencies, run the following command:
+To install the additional required dependencies, run the following command:
 
     pip install -r requirements.txt
+
+The `SCORE` and `DAS` algorithms are implemented in the `dodiscover` repo. As there is no official release yet,
+the package must be pip installed from [github](https://github.com/py-why/dodiscover/tree/main) directly.
 
 ## <a name="using">How to use</a>
 
