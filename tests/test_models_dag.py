@@ -15,20 +15,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import math
 import os
 import pickle
-from unittest.mock import patch
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
 
-from causalAssembly.models_dag import (
-    HandCraftedDAG,
-    Node,
-    NodeAttributes,
-    ProcessCell,
-    ProductionLineGraph,
-)
+from causalAssembly.models_dag import NodeAttributes, ProcessCell, ProductionLineGraph
 
 
 class TestProcessCell:
@@ -610,99 +603,3 @@ class TestProductionLineGraph:
         )
         assert between_amat.loc[pline.cell1.nodes, pline.cell1.nodes].sum().sum() == 0
         assert between_amat.loc[pline.cell2.nodes, pline.cell2.nodes].sum().sum() == 0
-
-
-class TestNode:
-    def test_instance_is_created(self):
-        n = Node(name="PyTest")
-
-        assert n.name == "PyTest"
-        assert isinstance(n, Node)
-
-
-class TestHandCraftedDAG:
-    def test_instance_is_created(self):
-        nodes = ["A", "B", "C"]
-        h = HandCraftedDAG(nodes=nodes, name="pytest")
-
-        assert isinstance(h, HandCraftedDAG)
-
-    def test_getattr_works(self):
-        h = HandCraftedDAG(nodes=["A"], name="pytest")
-
-        assert isinstance(h.A, Node)
-
-        with pytest.raises(AttributeError):
-            h.AAA
-
-    def test_add_single_edge_works(self):
-        h = HandCraftedDAG(nodes=["A", "B", "C"], name="pytest")
-        h.add_edge(from_node=h.A, to_node=h.B)
-
-        assert len(h.graph.edges) == 1
-
-    def test_add_edges_works(self):
-        h = HandCraftedDAG(nodes=["A", "B", "C"], name="pytest")
-
-        edges = [(h.A, h.B), (h.B, h.C)]
-        h.add_edges(edges=edges)
-
-        assert len(h.graph.edges) == len(edges)
-
-    @pytest.mark.parametrize(
-        "node_names,n_nodes",
-        [(["A", "B", "C"], 10), (["A", "B", "C"], 0), ([], 10)],
-        ids=[
-            "absorb large into small dag",
-            "nothing to absorb",
-            "absorb into empty dag",
-        ],
-    )
-    def test_absorb_dag_works(self, node_names, n_nodes):
-        # Arrange
-        random_dag = nx.gnp_random_graph(n=n_nodes, p=0.1, directed=True)
-        h = HandCraftedDAG(nodes=node_names, name="pytest")
-
-        # Act
-        h.absorb_dag(dag=random_dag)
-
-        # Assert
-        assert len(h.graph.nodes) == n_nodes + len(node_names)
-
-    def test_absorb_dag_with_mapping_works(self):
-        # Arrange
-        random_dag = nx.gnp_random_graph(n=5, p=0.1, directed=True)
-        h = HandCraftedDAG(nodes=["A", "B", "C"], name="pytest")
-
-        edges = [("A", 0)]
-        # Act
-
-        h.absorb_dag(dag=random_dag, edges=edges)
-
-        # Assert
-        assert edges.pop() in h.graph.edges
-
-    def test_export_works(self):
-        # Arrange
-        h = HandCraftedDAG(nodes=["A", "B", "C"], name="pytest")
-        new_node_prefix = "XXX"
-        # Act
-        export = h.export_dag(node_prefix=new_node_prefix)
-
-        # Assert
-        for node_name in export.nodes:
-            assert node_name.startswith(new_node_prefix)
-
-    @patch("causalAssembly.models_dag.nx.draw_networkx_nodes")
-    def test_draw(self, draw_networkx_nodes_mock):
-        # Arrange
-        p = ProductionLineGraph()
-        p.new_cell(name="C1")
-        p.new_cell(name="C2")
-        p.C1.add_random_module(n_nodes=10)
-
-        # Act
-        p.show()
-
-        # Assert
-        assert draw_networkx_nodes_mock.call_count == len(p.cells)

@@ -26,7 +26,6 @@ import numpy as np
 import pandas as pd
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import BoxStyle, FancyBboxPatch
-from pydantic import BaseModel
 from scipy.stats import gaussian_kde
 
 from causalAssembly.dag_utils import _bootstrap_sample, tuples_from_cartesian_product
@@ -39,79 +38,6 @@ logger = logging.getLogger(__name__)
 class NodeAttributes:
     ALLOW_IN_EDGES = "allow_in_edges"
     HIDDEN = "is_hidden"
-
-
-class Node(BaseModel):
-    name: str
-
-
-class HandCraftedDAG:
-    def __init__(self, nodes: list[str], name: str):
-        self.name = name
-        self.__nodes: list[str] = nodes
-        self.nodes: dict[str, Node] = dict()
-        self.graph: nx.DiGraph()
-
-        self.__init_nodes()
-        self.__init_dag()
-
-    def __init_nodes(self):
-        # TODO how to handle NodeNames with space, linebreak etc, ValueError?
-        for node_name in self.__nodes:
-            n = Node(name=node_name)
-            self.nodes[node_name] = n
-
-    def __getattr__(self, attrname):
-        if attrname not in self.nodes.keys():
-            raise AttributeError(f"{attrname} is not a valid attribute (node name?).")
-        return self.nodes[attrname]
-
-    # def __setattr__(self, attrname, value):
-    #     self[attrname] = value
-    #
-    # def __delattr__(self, attrname):
-    #     del self[attrname]
-
-    def __init_dag(self):
-        self.graph = nx.DiGraph(name=self.name)
-
-        if self.__nodes:
-            self.graph.add_nodes_from(self.__nodes)
-            nx.set_node_attributes(self.graph, "name", self.name)
-
-    def add_edge(self, from_node: Node, to_node: Node):
-        self.graph.add_edge(from_node.name, to_node.name)
-
-    def add_edges(self, edges: list[tuple[Node, Node]]):
-        edges = [(t[0].name, t[1].name) for t in edges]
-        self.graph.add_edges_from(edges)
-
-    def add_nodes(self, nodes: list[Node]):
-        pass
-
-    def add_term(self, node, term):
-        raise NotImplementedError
-
-    def absorb_dag(self, dag: nx.DiGraph, edges: list = None, isolate_target_nodes: bool = False):
-        self.graph = nx.compose(self.graph, dag)
-        if edges:
-            self.graph.add_edges_from(edges)
-
-    def draw(self):
-        pos = nx.spring_layout(self.graph, seed=0)
-        nx.draw_networkx_nodes(self.graph, pos=pos, node_size=100)
-        nx.draw_networkx_edges(self.graph, pos=pos)
-        nx.draw_networkx_labels(self.graph, pos=pos, font_size=6)
-
-    def export_dag(self, node_prefix: str = None) -> nx.DiGraph:
-        if not node_prefix:
-            return self.graph
-
-        # TODO remove / experimental
-        mapping = {
-            old_node_name: f"{node_prefix}_{old_node_name}" for old_node_name in self.graph.nodes()
-        }
-        return nx.relabel_nodes(self.graph, mapping)
 
 
 def _sample_from_drf(
