@@ -7,3 +7,4 @@ Below, you will find the documentation of the
 ::: causalAssembly.metrics
 ::: causalAssembly.drf_fitting
 ::: causalAssembly.pdag
+::: causalAssembly.dag

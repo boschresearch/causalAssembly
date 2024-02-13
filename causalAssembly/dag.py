@@ -89,10 +89,10 @@ class DAG:
             self.add_edge(edge=edge)
 
     def children(self, of_node: str) -> list[str]:
-        """Gives all children of node `node`.
+        """Gives all children of node `of_node`.
 
         Args:
-            node (str): node in current DAG.
+            of_node (str): node in current DAG.
 
         Returns:
             list: of children.
@@ -103,10 +103,10 @@ class DAG:
             return []
 
     def parents(self, of_node: str) -> list[str]:
-        """Gives all parents of node `node`.
+        """Gives all parents of node `of_node`.
 
         Args:
-            node (str): node in current DAG.
+            of_node (str): node in current DAG.
 
         Returns:
             list: of parents.
@@ -259,7 +259,7 @@ class DAG:
         """Convert to networkx graph.
 
         Returns:
-            nx.MultiDiGraph: Graph with directed and undirected edges.
+            nx.DiGraph: DAG.
         """
         nx_dag = nx.DiGraph()
         nx_dag.add_nodes_from(self.nodes)
