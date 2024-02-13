@@ -3,9 +3,10 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
-
 This repo provides details regarding $\texttt{causalAssembly}$, a causal discovery benchmark data tool based on complex production data.
+Theoretical details and information regarding construction are presented in the paper:
 
+    Göbler, K., Windisch, T., Pychynski, T., Sonntag, S., Roth, M., & Drton, M. (2023). causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery. arXiv preprint arXiv:2306.10816.
 ## Authors
 * [Konstantin Goebler](mailto:konstantin.goebler@de.bosch.com)
 * [Steffen Sonntag](mailto:steffen.sonntag@de.bosch.com)
