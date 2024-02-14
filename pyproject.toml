@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "causalAssembly"
+requires-python = ">3.10.0"
 authors = [
     { name = "Konstantin Göbler", email = "konstantin.goebler@de.bosch.com" },
 ]
-description = "Benchmarking and generating production line data"
+description = "Generating production line data with available causal ground truth"
 dynamic = ["version"]
 dependencies = [
     "sympy",
@@ -16,8 +17,6 @@ dependencies = [
     "scipy",
     "numpy",
     "pandas",
-    "pydantic",
-    "distinctipy",
     "matplotlib",
     "rpy2",
     "requests",

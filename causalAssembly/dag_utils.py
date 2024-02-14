@@ -90,7 +90,8 @@ def merge_dags_via_edges(
             Defaults to False.
 
     Raises:
-        ValueError: source or target nodes are not available in left or right dag
+        ValueError: source or target nodes are not available in left dag
+        ValueError: source or target nodes are not available in right dag
 
     """
     if not edges:
@@ -118,6 +119,7 @@ def merge_dags_via_edges(
 
     merged_dag = nx.compose(left_dag, right_dag)
 
+    # TODO experimental
     merged_dag.add_edges_from(edges, **{"connector": True})
 
     return merged_dag
@@ -133,9 +135,6 @@ def tuples_from_cartesian_product(l1: list, l2: list) -> list[tuple]:
     Returns:
         list[tuple]: list of edges typically
 
-    Note:
-        This could take a long time for large graphs.
-
     Examples::
 
         l1 = [0,1,2]
@@ -144,6 +143,7 @@ def tuples_from_cartesian_product(l1: list, l2: list) -> list[tuple]:
         [(0,'a'), (0,'b'), (0,'c'), (1,'a'), (1,'b'), (1,'c'), (2,'a'), (2,'b'), (2,'c')]
 
     """
+    # TODO: This could take a long time for large graphs...
     return [
         (tail, head)
         for tail, head in itertools.product(
@@ -153,9 +153,7 @@ def tuples_from_cartesian_product(l1: list, l2: list) -> list[tuple]:
     ]
 
 
-def _bootstrap_sample(
-    rng: np.random.Generator, data: np.array, size: int = None
-) -> np.array:
+def _bootstrap_sample(rng: np.random.Generator, data: np.array, size: int = None) -> np.array:
     """Generate bootstrap sample, i.e.
     random sample with replacement of length `size` from 1-d array.
 

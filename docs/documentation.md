@@ -1,6 +1,4 @@
-This part of the project documentation focuses on
-an **information-oriented** approach. Use it as a
-reference for the technical implementation of the
+Below, you will find the documentation of the
 `causalAssembly` project code.
 
 ::: causalAssembly.models_dag
@@ -8,3 +6,5 @@ reference for the technical implementation of the
 ::: causalAssembly.models_fcm
 ::: causalAssembly.metrics
 ::: causalAssembly.drf_fitting
+::: causalAssembly.pdag
+::: causalAssembly.dag

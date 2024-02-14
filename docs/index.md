@@ -5,9 +5,4 @@ datasets.
 
 ## Where to go from here
 
-The documentation follows the best practice for
-project documentation as described by Daniele Procida
-in the [Diátaxis documentation framework](https://diataxis.fr/)
-and consists of:
-
 [Bring me to the documentation](documentation.md)

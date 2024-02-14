@@ -13,67 +13,66 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
+import logging
 import os
 
-from utils import run_benchmark
+from rpy2.robjects.packages import importr
+from utils import BenchMarker
 
 from causalAssembly.drf_fitting import fit_drf
 from causalAssembly.models_dag import ProductionLineGraph
 
-seed = 2023
-n_select = 500
+base_r_package = importr("base")
+utils = importr("utils")
+utils.install_packages("drf", repos="https://cloud.r-project.org")
+utils.install_packages("SID")
+
+logging.getLogger("py4j").setLevel(logging.ERROR)
+
+n_select = 5000
+runs = 100
 
 path_to_benchmarks = os.path.join(os.path.dirname(__file__), "benchmarks.json")
 
 if __name__ == "__main__":
-    df_line_data = ProductionLineGraph.get_data()
+    line_data = ProductionLineGraph.get_data()
 
     # take subsample for demonstration purposes
-    df_line_data = df_line_data.sample(
-        n_select, random_state=seed, replace=False
-    )
+    df_line_data = line_data.sample(n_select, replace=False)
 
     # load in ground truth
     assembly_line = ProductionLineGraph.get_ground_truth()
-
-    assembly_line.drf = fit_drf(prod_object=assembly_line, data=df_line_data)
+    assembly_line.drf = fit_drf(graph=assembly_line, data=df_line_data)
 
     for cell in assembly_line.cell_order:
-        assembly_line.cells[cell].drf = fit_drf(
-            prod_object=assembly_line.cells[cell], data=df_line_data
-        )
+        assembly_line.cells[cell].drf = fit_drf(graph=assembly_line.cells[cell], data=df_line_data)
 
-    benchmark_result_dict = {}
-    generator_list = [assembly_line]
-    generator_list.extend(
-        [assembly_line.cells[cell] for cell in assembly_line.cell_order]
+    benchmarks = BenchMarker()
+
+    benchmarks.include_grandag()
+    benchmarks.include_lingam()
+    benchmarks.include_pc()
+    benchmarks.include_notears()
+    benchmarks.include_das()
+
+    benchmarks.run_benchmark(runs=runs, prod_obj=assembly_line, harmonize_via="cpdag_transform")
+
+    benchmarks.run_benchmark(
+        runs=runs,
+        prod_obj=assembly_line,
+        harmonize_via="best_dag_shd",
+        between_and_within_results=True,
     )
-    reps = [100] * 6
-    metrics = ["shd", "precision", "recall", "f1"]
-    naming = ["Full_Line"]
-    naming.extend(assembly_line.cell_order)
 
-    for idx, generator in enumerate(generator_list):
-        # big loop over data_generators here and then plot
-        benchmark_run = run_benchmark(
-            data_generator=generator,
-            algorithms=["pc", "lingam", "notears", "grandag", "snr"],
-            runs=reps[idx],  # reduce for testing
-            return_varsortability=False,
-            standardize_before_run=True,
+    for cell in assembly_line.cell_order:
+        benchmarks.run_benchmark(
+            runs=runs, prod_obj=assembly_line.cells[cell], harmonize_via="cpdag_transform"
         )
-
-        benchmarks = {}
-        for metric in metrics:
-            benchmarks_of_metric = {}
-            for alg, result_df in benchmark_run.items():
-                benchmarks_of_metric[alg] = result_df[metric]
-
-            benchmarks[metric] = benchmarks_of_metric
-
-        benchmark_result_dict[naming[idx]] = benchmarks
+        benchmarks.run_benchmark(
+            runs=runs, prod_obj=assembly_line.cells[cell], harmonize_via="best_dag_shd"
+        )
 
     print("Benchmarks completed. I'll dump them to file")
 
-    with open(path_to_benchmarks, "w") as outfile:
-        json.dump(benchmark_result_dict, outfile)
+    with open(path_to_benchmarks, "w", encoding="utf-8") as outfile:
+        json.dump(benchmarks.collect_results, outfile)
