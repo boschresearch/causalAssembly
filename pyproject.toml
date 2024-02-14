@@ -21,6 +21,15 @@ dependencies = [
     "rpy2",
     "requests",
 ]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+[project.urls]
+Homepage = "https://github.com/boschresearch/causalAssembly"
+Documentation = "https://boschresearch.github.io/causalAssembly/"
+Repository = "https://github.com/boschresearch/causalAssembly"
+Issues = "https://github.com/boschresearch/causalAssembly/issues"
+Changelog = "https://github.com/boschresearch/causalAssembly/blob/main/CHANGELOG.md"
 
 
 [project.optional-dependencies]
