@@ -15,6 +15,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
 import itertools
+import json
 import logging
 import pickle
 from dataclasses import dataclass
@@ -24,14 +25,20 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+import requests
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import BoxStyle, FancyBboxPatch
+from networkx.readwrite import json_graph
 from scipy.stats import gaussian_kde
 
 from causalAssembly.dag_utils import _bootstrap_sample, tuples_from_cartesian_product
 from causalAssembly.pdag import PDAG, dag2cpdag
 
 logger = logging.getLogger(__name__)
+
+DATA_SOURCE = "https://raw.githubusercontent.com/boschresearch/causalAssembly/main/data"
+DATA_DATASET = f"{DATA_SOURCE}/data_sets/synthetic_data.csv"
+DATA_GROUND_TRUTH = f"{DATA_SOURCE}/ground_truth/ground_truth.json"
 
 
 @dataclass
@@ -996,6 +1003,49 @@ class ProductionLineGraph:
         self.cell_connector_edges.extend(edges)
 
     @classmethod
+    def get_ground_truth(cls) -> ProductionLineGraph:
+        """Loads in the ground_truth as described in the paper:
+        causalAssembly: Generating Realistic Production Data for
+        Benchmarking Causal Discovery
+        Returns:
+            ProductionLineGraph: ground_truth for cells and line.
+        """
+
+        gt_response = requests.get(DATA_GROUND_TRUTH, timeout=5)
+        ground_truth = json.loads(gt_response.text)
+
+        assembly_line = json_graph.adjacency_graph(ground_truth)
+
+        stations = ["Station1", "Station2", "Station3", "Station4", "Station5"]
+        ground_truth_line = ProductionLineGraph()
+
+        for station in stations:
+            ground_truth_line.new_cell(station)
+            station_nodes = [node for node in assembly_line.nodes if node.startswith(station)]
+            station_subgraph = nx.subgraph(assembly_line, station_nodes)
+            # make sure its sorted
+            sorted_graph = nx.DiGraph()
+            sorted_graph.add_nodes_from(
+                sorted(station_nodes, key=lambda x: int(x.rpartition("_")[2]))
+            )
+            sorted_graph.add_edges_from(station_subgraph.edges)
+            ground_truth_line.cells[station].graph = sorted_graph
+
+        between_cell_edges = nx.difference(assembly_line, ground_truth_line.graph).edges()
+        ground_truth_line.connect_across_cells_manually(edges=between_cell_edges)
+        return ground_truth_line
+
+    @classmethod
+    def get_data(cls) -> pd.DataFrame:
+        """Load in semi-synthetic data as described in the paper:
+        causalAssembly: Generating Realistic Production Data for
+        Benchmarking Causal Discovery
+        Returns:
+            pd.DataFrame: Data from which data should be generated.
+        """
+        return pd.read_csv(DATA_DATASET)
+
+    @classmethod
     def from_nx(cls, g: nx.DiGraph, cell_mapper: dict[str, list]):
         """Convert nx.DiGraph to ProductionLineGraph. Requires a dict mapping
         where keys are cell names and values correspond to nodes within these cells.
@@ -1325,4 +1375,5 @@ class ProductionLineGraph:
                 if direct_confounder:
                     confounder_pairs[(node1, node2)] = direct_confounder
 
+        return confounder_pairs
         return confounder_pairs
