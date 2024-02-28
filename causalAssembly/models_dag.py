@@ -1376,4 +1376,3 @@ class ProductionLineGraph:
                     confounder_pairs[(node1, node2)] = direct_confounder
 
         return confounder_pairs
-        return confounder_pairs
