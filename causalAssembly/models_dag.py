@@ -30,6 +30,8 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import BoxStyle, FancyBboxPatch
 from networkx.readwrite import json_graph
 from scipy.stats import gaussian_kde
+from sympy.stats import sample as sympy_sample
+from sympy.stats.rv import RandomSymbol
 
 from causalAssembly.dag_utils import _bootstrap_sample, tuples_from_cartesian_product
 from causalAssembly.pdag import PDAG, dag2cpdag
@@ -54,6 +56,78 @@ def _sample_from_drf(
         raise ValueError("Nothing to sample from. Learn DRF first!")
     sample_dict = {}
     for node in prod_object.causal_order:
+        if isinstance(prod_object.drf[node], gaussian_kde):
+            # Node has no parents, generate a sample using bootstrapping
+            #
+            if smoothed:
+                sample_dict[node] = prod_object.drf[node].resample(
+                    size=size, seed=prod_object.random_state
+                )[0]
+            else:
+                sample_dict[node] = _bootstrap_sample(
+                    rng=prod_object.random_state,
+                    data=prod_object.drf[node].dataset[0],
+                    size=size,
+                )
+        else:
+            parents = prod_object.parents(of_node=node)
+            new_data = pd.DataFrame({col: sample_dict[col] for col in parents})
+            # new_data = pd.DataFrame(sample_dict[parents])
+            forest = prod_object.drf[node]
+            sample_dict[node] = forest.produce_sample(
+                newdata=new_data, random_state=prod_object.random_state
+            )
+    new_df = pd.DataFrame(sample_dict)
+    return new_df[prod_object.nodes]
+
+
+def _interventional_sample_from_drf(
+    prod_object: ProductionLineGraph,
+    which_intervention: int | str = 0,
+    size=10,
+    smoothed: bool = True,
+) -> pd.DataFrame:
+    if not prod_object.drf:
+        raise ValueError("Nothing to sample from. Learn DRF first!")
+
+    if not prod_object.mutilated_dags:
+        raise ValueError("No mutilated DAGs available. Please intervene first.")
+
+    if not prod_object.interventional_drf:
+        raise ValueError(
+            "No intervention values available. \
+            Please verify your hard/soft interventions."
+        )
+
+    if isinstance(which_intervention, int):
+        intervention_replace_dict = list(prod_object.interventional_drf.values())[
+            which_intervention
+        ]
+    elif isinstance(which_intervention, str):
+        intervention_replace_dict = prod_object.interventional_drf[which_intervention]
+
+    else:
+        raise ValueError("Please specify which intervention you want to sample from.")
+
+    # for node, value in intervention_replace_dict.items():
+    #     prod_object.drf[node] = value
+
+    sample_dict = {}
+    for node in prod_object.causal_order:
+        if node in intervention_replace_dict:
+            if isinstance(intervention_replace_dict[node], int):
+                sample_dict[node] = np.repeat(a=intervention_replace_dict[node], repeats=size)
+
+            elif isinstance(intervention_replace_dict[node], RandomSymbol):
+                sample_dict[node] = sympy_sample(
+                    expr=intervention_replace_dict[node], size=size, seed=prod_object.random_state
+                )
+            else:
+                raise NotImplementedError(
+                    "Currently only hard and soft interventions are implemented"
+                )
+            continue
+
         if isinstance(prod_object.drf[node], gaussian_kde):
             # Node has no parents, generate a sample using bootstrapping
             #
@@ -287,6 +361,19 @@ class ProcessCell:
             pd.DataFrame: Data frame that follows the distribution implied by the ground truth.
         """
         return _sample_from_drf(prod_object=self, size=size, smoothed=smoothed)
+
+    def interventional_sample_from_drf(self, size=10, smoothed: bool = True) -> pd.DataFrame:
+        """Draw from the trained DRF.
+
+        Args:
+            size (int, optional): Number of samples to be drawn. Defaults to 10.
+            smoothed (bool, optional): If set to true, marginal distributions will
+                be sampled from smoothed bootstraps. Defaults to True.
+
+        Returns:
+            pd.DataFrame: Data frame that follows the distribution implied by the ground truth.
+        """
+        return _interventional_sample_from_drf(prod_object=self, size=size, smoothed=smoothed)
 
     def _generate_random_dag(self, n_nodes: int = 5, p: float = 0.1) -> nx.DiGraph:
         """
@@ -711,6 +798,8 @@ class ProductionLineGraph:
         self.cell_connector_edges = list()
         self.cell_order = list()
         self.drf: dict = dict()
+        self.interventional_drf: dict = dict()
+        self.__init_mutilated_dag()
 
     @property
     def random_state(self):
@@ -721,6 +810,9 @@ class ProductionLineGraph:
         if not isinstance(r, np.random.Generator):
             raise AssertionError("Specify numpy random number generator object!")
         self._random_state = r
+
+    def __init_mutilated_dag(self):
+        self.mutilated_dags = dict()
 
     @property
     def graph(self) -> nx.DiGraph:
@@ -1002,6 +1094,78 @@ class ProductionLineGraph:
         """
         self.cell_connector_edges.extend(edges)
 
+    def intervene_on(self, nodes_values: dict[str, RandomSymbol | float]):
+        """Specify hard or soft intervention. If you want to intervene
+        upon more than one node provide a list of nodes to intervene on
+        and a list of corresponding values to set these nodes to.
+        (see example). The mutilated dag will automatically be
+        stored in `mutiliated_dags`.
+
+        Args:
+            nodes_values (dict[str, RandomSymbol | float]): either single real
+                number or sympy.stats.RandomSymbol. If you like to intervene on
+                more than one node, just provide more key-value pairs.
+
+        Raises:
+            AssertionError: If node(s) are not in the graph
+        """
+        if not self.drf:
+            raise AssertionError("You need to train a drf first.")
+        drf_replace = {}
+
+        if not set(nodes_values.keys()).issubset(set(self.nodes)):
+            raise AssertionError(
+                "One or more nodes you want to intervene upon are not in the graph."
+            )
+
+        mutilated_dag = self.graph.copy()
+
+        for node, value in nodes_values.items():
+            old_incoming = self.parents(of_node=node)
+            edges_to_remove = [(old, node) for old in old_incoming]
+            mutilated_dag.remove_edges_from(edges_to_remove)
+            drf_replace[node] = value
+
+        self.mutilated_dags[
+            f"do({list(nodes_values.keys())})"
+        ] = mutilated_dag  # specifiying the same set twice will override
+
+        self.interventional_drf[f"do({list(nodes_values.keys())})"] = drf_replace
+
+    @property
+    def interventions(self) -> list:
+        """Returns all interventions performed on the original graph
+
+        Returns:
+            list: list of intervened upon nodes in do(x) notation.
+        """
+        return list(self.mutilated_dags.keys())
+
+    def interventional_amat(self, which_intervention: int | str) -> pd.DataFrame:
+        """Returns the adjacency matrix of a chosen mutilated DAG.
+
+        Args:
+            which_intervention (int | str): Integer count of your chosen intervention or
+                literal string.
+
+        Raises:
+            ValueError: "The intervention you provide does not exist."
+
+        Returns:
+            pd.DataFrame: Adjacency matrix.
+        """
+        if isinstance(which_intervention, str) and which_intervention not in self.interventions:
+            raise ValueError("The intervention you provide does not exist.")
+
+        if isinstance(which_intervention, int) and which_intervention > len(self.interventions):
+            raise ValueError("The intervention you index does not exist.")
+
+        if isinstance(which_intervention, int):
+            which_intervention = self.interventions[which_intervention]
+
+        mutilated_dag = self.mutilated_dags[which_intervention].copy()
+        return nx.to_pandas_adjacency(mutilated_dag, weight=None)
+
     @classmethod
     def get_ground_truth(cls) -> ProductionLineGraph:
         """Loads in the ground_truth as described in the paper:
@@ -1142,6 +1306,27 @@ class ProductionLineGraph:
         """
         return _sample_from_drf(prod_object=self, size=size, smoothed=smoothed)
 
+    def sample_from_interventional_drf(
+        self, which_intervention: str | int = 0, size=10, smoothed: bool = True
+    ) -> pd.DataFrame:
+        """Draw from the trained and intervened upon DRF.
+
+        Args:
+            size (int, optional): Number of samples to be drawn. Defaults to 10.
+            which_intervention (str | int): Which intervention to choose from.
+                Both the literal name (see the property `interventions`) and the index
+                are possible. Defaults to the first intervention.
+            smoothed (bool, optional): If set to true, marginal distributions will
+                be sampled from smoothed bootstraps. Defaults to True.
+
+        Returns:
+            pd.DataFrame: Data frame that follows the interventional distribution
+                implied by the ground truth.
+        """
+        return _interventional_sample_from_drf(
+            prod_object=self, which_intervention=which_intervention, size=size, smoothed=smoothed
+        )
+
     def hidden_nodes(self) -> list:
         """Returns list of nodes marked as hidden
 
@@ -1230,7 +1415,7 @@ class ProductionLineGraph:
         Raises:
             AssertionError: Meta list entry needs to exist for each cell!
         """
-        fig, ax = plt.subplots(figsize=fig_size)
+        _, ax = plt.subplots(figsize=fig_size)
 
         pos = {}
 
