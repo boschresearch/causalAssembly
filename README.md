@@ -4,9 +4,9 @@
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
 This repo provides details regarding $\texttt{causalAssembly}$, a causal discovery benchmark data tool based on complex production data.
-Theoretical details and information regarding construction are presented in the paper:
+Theoretical details and information regarding construction are presented in the [paper](https://arxiv.org/abs/2306.10816):
 
-    Göbler, K., Windisch, T., Pychynski, T., Sonntag, S., Roth, M., & Drton, M. (2023). causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery. arXiv preprint arXiv:2306.10816.
+    Göbler, K., Windisch, T., Pychynski, T., Sonntag, S., Roth, M., & Drton, M. causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery, to appear in Proceedings of the 3rd Conference on Causal Learning and Reasoning (CLeaR), 2024, 
 ## Authors
 * [Konstantin Goebler](mailto:konstantin.goebler@de.bosch.com)
 * [Steffen Sonntag](mailto:steffen.sonntag@de.bosch.com)
@@ -69,6 +69,55 @@ assembly_line.Station3.drf = fit_drf(assembly_line.Station3, data=assembly_line_
 station3_sample = assembly_line.Station3.sample_from_drf(size=n_select)
 
 ```
+### <a name="Interventional data">Interventional data</a>
+In case you want to create interventional data, we currently support hard and soft interventions.
+For soft interventions we use `sympy`'s `RandomSymbol` class. Essentially, soft interventions should
+be declared by choosing your preferred random variable with associated distribution from [here](https://docs.sympy.org/latest/modules/stats.html#continuous-types). Simple examples include:
+
+```python
+from sympy.stats import Beta, Normal, Uniform
+
+x = Beta("x", 1, 1)
+y = Normal("y", 0, 1)
+z = Uniform("z", 0, 1)
+
+```
+
+The following example is similar to the basic use example above where we now intervene on two nodes in the graph.
+
+```python
+from sympy.stats import Beta
+
+from causalAssembly.drf_fitting import fit_drf
+from causalAssembly.models_dag import ProductionLineGraph
+
+seed = 2023
+n_select = 500
+
+assembly_line_data = ProductionLineGraph.get_data()
+
+# take subsample for demonstration purposes
+assembly_line_data = assembly_line_data.sample(n_select, random_state=seed, replace=False)
+
+# load in ground truth
+assembly_line = ProductionLineGraph.get_ground_truth()
+
+# fit drf and sample for entire line
+assembly_line.drf = fit_drf(assembly_line, data=assembly_line_data)
+
+# intervene on two nodes in the assembly line
+assembly_line.intervene_on(
+    nodes_values={"Station3_mp_41": 2, "Station4_mp_58": Beta("noise", 1, 1)}
+)
+
+# sample from the corresponding interventional distribution
+my_int_df = assembly_line.sample_from_interventional_drf(size=5)
+
+print(my_int_df[["Station3_mp_41", "Station4_mp_58"]])
+
+```
+
+Note that intervening does not alter any of the functionalities introduced above. The interevened upon DAGs are stored in `mutilated_dags`. When calling `sample_from_drf()` the ground truth DAG as described in the paper is used. To sample from the interventional distribution, you must use `sample_from_interventional_drf`.
 
 ### <a name="how-to-semisynthesize">How to semisynthesize</a>
 

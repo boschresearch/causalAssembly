@@ -20,6 +20,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
+from sympy.stats import Beta
 
 from causalAssembly.models_dag import NodeAttributes, ProcessCell, ProductionLineGraph
 
@@ -603,3 +604,8 @@ class TestProductionLineGraph:
         )
         assert between_amat.loc[pline.cell1.nodes, pline.cell1.nodes].sum().sum() == 0
         assert between_amat.loc[pline.cell2.nodes, pline.cell2.nodes].sum().sum() == 0
+
+    def test_interventional_drf_error(self):
+        testline = ProductionLineGraph()
+        with pytest.raises(ValueError):
+            testline.sample_from_interventional_drf()
