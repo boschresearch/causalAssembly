@@ -1457,6 +1457,8 @@ class ProductionLineGraph:
             connectionstyle="arc3,rad=0.3",
         )
 
+	plt.show()
+
     def __str__(self):
         s = "ProductionLine\n\n"
         for cell in self.cells:
