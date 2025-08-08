@@ -32,4 +32,4 @@ jobs:
         python -m pip install -r requirements_dev.txt
     - name: Test with pytest
       run: |
-        python -m pytest
+        python -m pytest --cov=causalAssembly tests/
