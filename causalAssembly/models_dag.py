@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -45,6 +47,8 @@ DATA_GROUND_TRUTH = f"{DATA_SOURCE}/ground_truth/ground_truth.json"
 
 @dataclass
 class NodeAttributes:
+    """Node Attributes."""
+
     ALLOW_IN_EDGES = "allow_in_edges"
     HIDDEN = "is_hidden"
 
@@ -64,8 +68,12 @@ def _sample_from_drf(
                     size=size, seed=prod_object.random_state
                 )[0]
             else:
+                if prod_object.random_state is not None:
+                    rng = prod_object.random_state
+                else:
+                    rng = np.random.default_rng()
                 sample_dict[node] = _bootstrap_sample(
-                    rng=prod_object.random_state,
+                    rng=rng,
                     data=prod_object.drf[node].dataset[0],
                     size=size,
                 )
@@ -154,8 +162,8 @@ def _interventional_sample_from_drf(
 
 
 class ProcessCell:
-    """
-    Representation of a single Production Line Cell
+    """Representation of a single Production Line Cell.
+
     (to model a station / a process in a production line
     environment).
 
@@ -168,6 +176,11 @@ class ProcessCell:
     """
 
     def __init__(self, name: str):
+        """Inits Process cell class.
+
+        Args:
+            name (str): _description_
+        """
         self.name = name
         self.graph: nx.DiGraph = nx.DiGraph()
 
@@ -201,7 +214,7 @@ class ProcessCell:
 
     @property
     def num_nodes(self) -> int:
-        """Number of nodes in the graph
+        """Number of nodes in the graph.
 
         Returns:
             int
@@ -210,7 +223,7 @@ class ProcessCell:
 
     @property
     def num_edges(self) -> int:
-        """Number of edges in the graph
+        """Number of edges in the graph.
 
         Returns:
             int
@@ -219,7 +232,7 @@ class ProcessCell:
 
     @property
     def sparsity(self) -> float:
-        """Sparsity of the graph
+        """Sparsity of the graph.
 
         Returns:
             float: in [0,1]
@@ -229,8 +242,7 @@ class ProcessCell:
 
     @property
     def ground_truth(self) -> pd.DataFrame:
-        """Returns the current ground truth as
-        pandas adjacency.
+        """Returns the current ground truth as pandas adjacency.
 
         Returns:
             pd.DataFrame: Adjacenccy matrix.
@@ -240,6 +252,7 @@ class ProcessCell:
     @property
     def causal_order(self) -> list[str]:
         """Returns the causal order of the current graph.
+
         Note that this order is in general not unique.
 
         Returns:
@@ -258,7 +271,7 @@ class ProcessCell:
         """
         return list(self.graph.predecessors(of_node))
 
-    def save_drf(self, filename: str, location: str = None):
+    def save_drf(self, filename: str, location: str | Path | None = None):
         """Writes a drf dict to file. Please provide the .pkl suffix!
 
         Args:
@@ -266,7 +279,6 @@ class ProcessCell:
             location (str, optional): path to file in case it's not located in
                 the current working directory. Defaults to None.
         """
-
         if not location:
             location = Path().resolve()
 
@@ -281,7 +293,7 @@ class ProcessCell:
         allow_in_edges: bool = True,
         mark_hidden: bool | list = False,
     ) -> str:
-        """Adds module to cell graph. Module has to be as nx.DiGraph object
+        """Adds module to cell graph. Module has to be as nx.DiGraph object.
 
         Args:
             graph (nx.DiGraph): Graph to add to cell.
@@ -296,15 +308,13 @@ class ProcessCell:
         Returns:
             str: prefix of Module created
         """
-
         next_module_prefix = self.next_module_prefix()
 
         node_renaming_dict = {
             old_node_name: f"{self.name}_{next_module_prefix}_{old_node_name}"
             for old_node_name in graph.nodes()
         }
-
-        self.modules[self.next_module_prefix()] = graph.copy()
+        self.modules[self.next_module_prefix()] = graph.copy()  # type: ignore
         graph = nx.relabel_nodes(graph, node_renaming_dict)
 
         if allow_in_edges:  # for later: mark nodes to not have incoming edges
@@ -323,14 +333,14 @@ class ProcessCell:
             nx.set_node_attributes(
                 graph, values=overwrite_dict
             )  # only overwrite the ones specified
-        # TODO relabel attributes, i.e. name of the parents has changed now?
-        # .update_attributes or so or keep and remove prefixes in bayesian network creation?
         self.graph = nx.compose(self.graph, graph)
 
         return next_module_prefix
 
     def input_cellgraph_directly(self, graph: nx.DiGraph, allow_in_edges: bool = False):
-        """Allow to input graphs on a cell-level. This should only be done if the graph
+        """Allow to input graphs on a cell-level.
+
+        This should only be done if the graph
         is already available for the entire cell, otherwise `add_module()` is preferred.
 
         Args:
@@ -362,23 +372,10 @@ class ProcessCell:
         """
         return _sample_from_drf(prod_object=self, size=size, smoothed=smoothed)
 
-    def interventional_sample_from_drf(self, size=10, smoothed: bool = True) -> pd.DataFrame:
-        """Draw from the trained DRF.
-
-        Args:
-            size (int, optional): Number of samples to be drawn. Defaults to 10.
-            smoothed (bool, optional): If set to true, marginal distributions will
-                be sampled from smoothed bootstraps. Defaults to True.
-
-        Returns:
-            pd.DataFrame: Data frame that follows the distribution implied by the ground truth.
-        """
-        return _interventional_sample_from_drf(prod_object=self, size=size, smoothed=smoothed)
-
     def _generate_random_dag(self, n_nodes: int = 5, p: float = 0.1) -> nx.DiGraph:
-        """
-        Creates a random DAG by
-        taking an arbitrary ordering of the specified number of nodes,
+        """Creates a random DAG.
+
+        By taking an arbitrary ordering of the specified number of nodes,
         and then considers edges from node i to j only if i < j.
         That constraint leads to DAGness by construction.
 
@@ -389,26 +386,37 @@ class ProcessCell:
         Returns:
             nx.DiGraph:
         """
+        rng = self.random_state
+        if rng is None:
+            rng = np.random.default_rng()
         dag = nx.DiGraph()
         dag.add_nodes_from(range(0, n_nodes))
 
         causal_order = list(dag.nodes)
-        self.random_state.shuffle(causal_order)
+        rng.shuffle(causal_order)
 
         all_forward_edges = itertools.combinations(causal_order, 2)
         edges = np.array(list(all_forward_edges))
 
-        random_choice = self.random_state.choice([False, True], p=[1 - p, p], size=edges.shape[0])
+        random_choice = rng.choice([False, True], p=[1 - p, p], size=edges.shape[0])
 
         dag.add_edges_from(edges[random_choice])
         return dag
 
     def add_random_module(self, n_nodes: int = 7, p: float = 0.10):
+        """Add random module to the cell.
+
+        Args:
+            n_nodes (int, optional): _description_. Defaults to 7.
+            p (float, optional): _description_. Defaults to 0.10.
+        """
         randomdag = self._generate_random_dag(n_nodes=n_nodes, p=p)
         self.add_module(graph=randomdag, allow_in_edges=True, mark_hidden=False)
 
     def connect_by_module(self, m1: str, m2: str, edges: list[tuple]):
-        """Connect two modules (by name, e.g. M2, M4) of the cell by a list
+        """Connect two modules.
+
+        (by name, e.g. M2, M4) of the cell by a list
         of edges with the original node names.
 
         Args:
@@ -431,8 +439,9 @@ class ProcessCell:
         self.graph.add_edges_from(new_edges)
 
     def connect_by_random_edges(self, sparsity: float = 0.1) -> nx.DiGraph:
-        """
-        Add random edges to graph according to proportion,
+        """Add random edges to graph.
+
+        according to proportion
         with restriction specified in node attributes.
 
         Args:
@@ -445,7 +454,9 @@ class ProcessCell:
         Returns:
             nx.DiGraph: DAG with new edges added.
         """
-
+        rng = self.random_state
+        if rng is None:
+            rng = np.random.default_rng()
         arrow_head_candidates = get_arrow_head_candidates_from_graph(
             graph=self.graph, node_attributes_to_filter=NodeAttributes.ALLOW_IN_EDGES
         )
@@ -460,9 +471,7 @@ class ProcessCell:
         ### choose edges uniformly according to sparsity parameter
         chosen_edges = [
             potential_edges[i]
-            for i in self.random_state.choice(
-                a=len(potential_edges), size=num_choices, replace=False
-            )
+            for i in rng.choice(a=len(potential_edges), size=num_choices, replace=False)
         ]
 
         self.graph.add_edges_from(chosen_edges)
@@ -474,24 +483,33 @@ class ProcessCell:
         return self.graph
 
     def __repr__(self):
+        """Repr method.
+
+        Returns:
+            _type_: _description_
+        """
         return f"ProcessCell(name={self.name})"
 
     def __str__(self):
+        """Str method.
+
+        Returns:
+            _type_: _description_
+        """
         cell_description = {
             "Cell Name: ": self.name,
             "Description:": self.description if self.description else "n.a.",
             "Modules:": self.no_of_modules,
             "Nodes: ": self.num_nodes,
         }
-        s = str()
+        s = ""
         for info, info_text in cell_description.items():
             s += f"{info:<14}{info_text:>5}\n"
 
         return s
 
     def __verify_edges_are_allowed(self, m1: str, m2: str, edges: list[tuple]):
-        """Check whether all starting point nodes
-        (first value in edge tuple) are allowed.
+        """Check whether all starting point nodes (first value in edge tuple) are allowed.
 
         Args:
             m1 (str): Module1
@@ -504,8 +522,8 @@ class ProcessCell:
         """
         source_nodes = set([e[0] for e in edges])
         target_nodes = set([e[1] for e in edges])
-        m1_nodes = set(self.modules.get(m1).nodes())
-        m2_nodes = set(self.modules.get(m2).nodes())
+        m1_nodes = set(self.modules.get(m1).nodes())  # type: ignore
+        m2_nodes = set(self.modules.get(m2).nodes())  # type: ignore
 
         if not source_nodes.issubset(m1_nodes):
             raise ValueError(f"source nodes: {source_nodes} not include in {m1}s nodes: {m1_nodes}")
@@ -514,6 +532,7 @@ class ProcessCell:
 
     def next_module_prefix(self) -> str:
         """Return the next module prefix, e.g.
+
         if there are already 3 modules connected to the cell,
         will return module_prefix4
 
@@ -524,6 +543,11 @@ class ProcessCell:
 
     @property
     def module_prefix(self) -> str:
+        """Module prefix.
+
+        Returns:
+            str: _description_
+        """
         return self.__module_prefix
 
     @module_prefix.setter
@@ -535,12 +559,19 @@ class ProcessCell:
 
     @property
     def no_of_modules(self) -> int:
+        """Number of modules in the cell.
+
+        Returns:
+            int: _description_
+        """
         return len(self.modules)
 
-    def get_nodes_by_attribute(self, attr_name: str, submodule: str = None) -> list:
-        pass
-
     def get_available_attributes(self):
+        """Get available attributes of the nodes in the graph.
+
+        Returns:
+            _type_: _description_
+        """
         available_attributes = set()
         for node_tuple in self.graph.nodes(data=True):
             for attribute_name in node_tuple[1].keys():
@@ -549,13 +580,20 @@ class ProcessCell:
         return list(available_attributes)
 
     def to_cpdag(self) -> PDAG:
+        """To CPDAG conversion.
+
+        Returns:
+            PDAG: _description_
+        """
         return dag2cpdag(dag=self.graph)
 
     def show(
         self,
         meta_desc: str = "",
     ):
-        """Plots the cell graph by giving extra weight to nodes
+        """Plots the cell graph.
+
+        by giving extra weight to nodes
         with high in- and out-degree.
 
         Args:
@@ -583,11 +621,12 @@ class ProcessCell:
             vmin=-0.2,
             vmax=1,
             node_color=[
-                (d + 10) / (max_in_degree + 10) for _, d in self.graph.in_degree(self.nodes)
+                (d + 10) / (max_in_degree + 10)
+                for _, d in self.graph.in_degree(self.nodes)  # type: ignore
             ],
             node_size=[
                 500 * (d + 1) / (max_out_degree + 1) for _, d in self.graph.out_degree(self.nodes)
-            ],
+            ],  # type: ignore
         )
 
         nx.draw_networkx_edges(
@@ -620,15 +659,22 @@ class ProcessCell:
         with_box=True,
         meta_desc="",
     ):
-        """Plots the cell graph by giving extra weight to nodes
+        """Plots the cell graph.
+
+        by giving extra weight to nodes
         with high in- and out-degree.
 
         Args:
-            with_edges (bool, optional): Defaults to True.
-            with_box (bool, optional): Defaults to True.
-            meta_desc (str, optional): Defaults to "".
-            center (_type_, optional): Defaults to np.array([0, 0]).
-            fig_size (tuple, optional): Defaults to (2, 8).
+            ax (_type_): _description_
+            node_color (_type_): _description_
+            node_size (_type_): _description_
+            center (_type_, optional): _description_. Defaults to np.array([0, 0]).
+            with_edges (bool, optional): _description_. Defaults to True.
+            with_box (bool, optional): _description_. Defaults to True.
+            meta_desc (str, optional): _description_. Defaults to "".
+
+        Returns:
+            _type_: _description_
         """
         cmap = plt.get_cmap("cividis")
 
@@ -674,7 +720,7 @@ class ProcessCell:
                 PatchCollection(
                     [
                         FancyBboxPatch(
-                            center - [2, 1],
+                            center - [2, 1],  # type: ignore
                             4,
                             2.6,
                             boxstyle=BoxStyle("Round", pad=0.02),
@@ -695,7 +741,8 @@ def choose_edges_from_cells_randomly(
     probability: float,
     rng: np.random.Generator,
 ) -> list[tuple[str, str]]:
-    """
+    """Choose cells randomly.
+
     From two given cells (graphs), we take the cartesian product (end up with
     from_cell.number_of_nodes x to_cell.number_of_nodes possible edges (node tuples).
 
@@ -708,12 +755,13 @@ def choose_edges_from_cells_randomly(
         from_cell: ProcessCell from where we want the edges
         to_cell: ProcessCell to where we want the edges
         probability: between 0 and 1
+        rng (np.random.Generator): Random number generator to use.
 
     Returns:
         list[tuple[str, str]]: Chosen edges.
     """
-
-    assert 0 <= probability <= 1.0
+    ONE = 1.0
+    assert 0 <= probability <= ONE
 
     arrow_tail_candidates = list(from_cell.graph.nodes)
     arrow_head_candidates = get_arrow_head_candidates_from_graph(graph=to_cell.graph)
@@ -736,6 +784,7 @@ def get_arrow_head_candidates_from_graph(
     graph: nx.DiGraph, node_attributes_to_filter: str = NodeAttributes.ALLOW_IN_EDGES
 ) -> list[str]:
     """Returns all arrow head (nodes where an arrow points to) nodes as list of candidates.
+
     To later build a list of tuples of potential edges.
 
     Args:
@@ -791,6 +840,27 @@ class ProductionLineGraph:
     """
 
     def __init__(self):
+        """Inits ProductionLineGraph.
+
+        Raises:
+            AssertionError: _description_
+            TypeError: _description_
+            AssertionError: _description_
+            AssertionError: _description_
+            AssertionError: _description_
+            ValueError: _description_
+            AssertionError: _description_
+            AssertionError: _description_
+            ValueError: _description_
+            ValueError: _description_
+            ValueError: _description_
+            TypeError: _description_
+            AssertionError: _description_
+            AttributeError: _description_
+
+        Returns:
+            _type_: _description_
+        """
         self._random_state = np.random.default_rng(seed=2023)
         self.cells: dict[str, ProcessCell] = dict()
         self.cell_prefix = "C"
@@ -803,6 +873,11 @@ class ProductionLineGraph:
 
     @property
     def random_state(self):
+        """Random state.
+
+        Returns:
+            _type_: _description_
+        """
         return self._random_state
 
     @random_state.setter
@@ -816,8 +891,7 @@ class ProductionLineGraph:
 
     @property
     def graph(self) -> nx.DiGraph:
-        """
-        Returns a nx.DiGraph object of the actual graph.
+        """Returns a nx.DiGraph object of the actual graph.
 
         The graph is only built HERE, i.e. all ProcessCells exist standalone in self.cells,
         with no connections between their nodes yet.
@@ -867,7 +941,7 @@ class ProductionLineGraph:
 
     @property
     def num_nodes(self) -> int:
-        """Number of nodes in the graph
+        """Number of nodes in the graph.
 
         Returns:
             int
@@ -876,7 +950,7 @@ class ProductionLineGraph:
 
     @property
     def num_edges(self) -> int:
-        """Number of edges in the graph
+        """Number of edges in the graph.
 
         Returns:
             int
@@ -885,7 +959,7 @@ class ProductionLineGraph:
 
     @property
     def sparsity(self) -> float:
-        """Sparsity of the graph
+        """Sparsity of the graph.
 
         Returns:
             float: in [0,1]
@@ -895,8 +969,7 @@ class ProductionLineGraph:
 
     @property
     def ground_truth(self) -> pd.DataFrame:
-        """Returns the current ground truth as
-        pandas adjacency.
+        """Returns the current ground truth as pandas adjacency.
 
         Returns:
             pd.DataFrame: Adjacenccy matrix.
@@ -913,8 +986,7 @@ class ProductionLineGraph:
 
     @property
     def within_adjacency(self) -> pd.DataFrame:
-        """Returns adjacency matrix ignoring all
-        between-cell edges.
+        """Returns adjacency matrix ignoring all between-cell edges.
 
         Returns:
             pd.DataFrame: adjacency matrix
@@ -924,8 +996,7 @@ class ProductionLineGraph:
 
     @property
     def between_adjacency(self) -> pd.DataFrame:
-        """Returns adjacency matrix ignoring all
-        within-cell edges.
+        """Returns adjacency matrix ignoring all within-cell edges.
 
         Returns:
             pd.DataFrame: adjacency matrix
@@ -936,6 +1007,7 @@ class ProductionLineGraph:
     @property
     def causal_order(self) -> list[str]:
         """Returns the causal order of the current graph.
+
         Note that this order is in general not unique.
 
         Returns:
@@ -955,6 +1027,11 @@ class ProductionLineGraph:
         return list(self.graph.predecessors(of_node))
 
     def to_cpdag(self) -> PDAG:
+        """Convert to CPDAG.
+
+        Returns:
+            PDAG: _description_
+        """
         return dag2cpdag(dag=self.graph)
 
     def get_nodes_of_station(self, station_name: str) -> list:
@@ -990,7 +1067,7 @@ class ProductionLineGraph:
 
         raise ValueError(f"A cell with name: {cell.name} is already in the Production Line.")
 
-    def new_cell(self, name: str = None, is_eol: bool = False) -> ProcessCell:
+    def new_cell(self, name: str | None = None, is_eol: bool = False) -> ProcessCell:
         """Add a new cell to the production line.
 
         If no name is given, cell name is given by counting available cells + 1
@@ -1009,7 +1086,7 @@ class ProductionLineGraph:
             actual_no_of_cells = len(self.cells.values())
             c = ProcessCell(name=f"{self.cell_prefix}{actual_no_of_cells}")
 
-        c.random_state = self.random_state
+        c.random_state = self.random_state  # type: ignore
 
         c.is_eol = is_eol
         self.__add_cell(cell=c)
@@ -1048,7 +1125,7 @@ class ProductionLineGraph:
                         rng=self.random_state,
                     )
 
-                    prob_it += 1  # FIXME: a bit ugly and hard to read
+                    prob_it += 1
                     self.cell_connector_edges.extend(chosen_edges)
 
             if eol_cell := self.eol_cell:
@@ -1066,8 +1143,7 @@ class ProductionLineGraph:
                     self.cell_connector_edges.extend(chosen_eol_edges)
 
     def copy(self) -> ProductionLineGraph:
-        """Makes a full copy of the current
-        ProductionLineGraph object
+        """Makes a full copy of the current ProductionLineGraph object.
 
         Returns:
             ProductionLineGraph: copyied object.
@@ -1088,14 +1164,18 @@ class ProductionLineGraph:
         return copy_graph
 
     def connect_across_cells_manually(self, edges: list[tuple]):
-        """Add edges manually across cells. You need to give the full name
+        """Add edges manually across cells.
+
+        You need to give the full name
         Args:
             edges (list[tuple]): list of edges to add
         """
         self.cell_connector_edges.extend(edges)
 
     def intervene_on(self, nodes_values: dict[str, RandomSymbol | float]):
-        """Specify hard or soft intervention. If you want to intervene
+        """Specify hard or soft intervention.
+
+        If you want to intervene
         upon more than one node provide a list of nodes to intervene on
         and a list of corresponding values to set these nodes to.
         (see example). The mutilated dag will automatically be
@@ -1126,15 +1206,15 @@ class ProductionLineGraph:
             mutilated_dag.remove_edges_from(edges_to_remove)
             drf_replace[node] = value
 
-        self.mutilated_dags[
-            f"do({list(nodes_values.keys())})"
-        ] = mutilated_dag  # specifiying the same set twice will override
+        self.mutilated_dags[f"do({list(nodes_values.keys())})"] = (
+            mutilated_dag  # specifiying the same set twice will override
+        )
 
         self.interventional_drf[f"do({list(nodes_values.keys())})"] = drf_replace
 
     @property
     def interventions(self) -> list:
-        """Returns all interventions performed on the original graph
+        """Returns all interventions performed on the original graph.
 
         Returns:
             list: list of intervened upon nodes in do(x) notation.
@@ -1168,13 +1248,13 @@ class ProductionLineGraph:
 
     @classmethod
     def get_ground_truth(cls) -> ProductionLineGraph:
-        """Loads in the ground_truth as described in the paper:
+        """Loads in the ground_truth as described in the paper.
+
         causalAssembly: Generating Realistic Production Data for
         Benchmarking Causal Discovery
         Returns:
             ProductionLineGraph: ground_truth for cells and line.
         """
-
         gt_response = requests.get(DATA_GROUND_TRUTH, timeout=5)
         ground_truth = json.loads(gt_response.text)
 
@@ -1201,7 +1281,8 @@ class ProductionLineGraph:
 
     @classmethod
     def get_data(cls) -> pd.DataFrame:
-        """Load in semi-synthetic data as described in the paper:
+        """Load in semi-synthetic data as described in the paper.
+
         causalAssembly: Generating Realistic Production Data for
         Benchmarking Causal Discovery
         Returns:
@@ -1211,7 +1292,9 @@ class ProductionLineGraph:
 
     @classmethod
     def from_nx(cls, g: nx.DiGraph, cell_mapper: dict[str, list]):
-        """Convert nx.DiGraph to ProductionLineGraph. Requires a dict mapping
+        """Convert nx.DiGraph to ProductionLineGraph.
+
+        Requires a dict mapping
         where keys are cell names and values correspond to nodes within these cells.
 
         Args:
@@ -1240,7 +1323,7 @@ class ProductionLineGraph:
         return pline
 
     @classmethod
-    def load_drf(cls, filename: str, location: str = None):
+    def load_drf(cls, filename: str, location: str | Path | None = None):
         """Loads a drf dict from a .pkl file into the workspace.
 
         Args:
@@ -1262,7 +1345,19 @@ class ProductionLineGraph:
         return pickle_drf
 
     @classmethod
-    def load_pline_from_pickle(cls, filename: str, location: str = None):
+    def load_pline_from_pickle(cls, filename: str, location: str | Path | None = None):
+        """Load production line graph from a pickle file.
+
+        Args:
+            filename (str): _description_
+            location (str | Path | None, optional): _description_. Defaults to None.
+
+        Raises:
+            TypeError: _description_
+
+        Returns:
+            _type_: _description_
+        """
         if not location:
             location = Path().resolve()
 
@@ -1276,7 +1371,7 @@ class ProductionLineGraph:
 
         return pickle_line
 
-    def save_drf(self, filename: str, location: str = None):
+    def save_drf(self, filename: str, location: str | Path | None = None):
         """Writes a drf dict to file. Please provide the .pkl suffix!
 
         Args:
@@ -1284,7 +1379,6 @@ class ProductionLineGraph:
             location (str, optional): path to file in case it's not located in
                 the current working directory. Defaults to None.
         """
-
         if not location:
             location = Path().resolve()
 
@@ -1328,7 +1422,7 @@ class ProductionLineGraph:
         )
 
     def hidden_nodes(self) -> list:
-        """Returns list of nodes marked as hidden
+        """Returns list of nodes marked as hidden.
 
         Returns:
             list: of hidden nodes
@@ -1340,16 +1434,19 @@ class ProductionLineGraph:
         ]
 
     def visible_nodes(self):
+        """All visible nodes in the graph.
+
+        Returns:
+            _type_: _description_
+        """
         return [node for node in self.nodes if node not in self.hidden_nodes()]
 
     @property
     def eol_cell(self) -> ProcessCell | None:
-        """
+        """Returns ProcessCell.
 
-        Returns ProcessCell: the EOL cell
+        the EOL cell
             (if any single cell has attr .is_eol = True), otherwise returns None
-        -------
-
         """
         for cell in self.cells.values():
             if cell.is_eol:
@@ -1358,6 +1455,7 @@ class ProductionLineGraph:
     @property
     def ground_truth_visible(self) -> pd.DataFrame:
         """Generates a ground truth graph in form of a pandas adjacency matrix.
+
         Row and column names correspond to visible.
         The following integers can occur:
 
@@ -1368,7 +1466,6 @@ class ProductionLineGraph:
         Returns:
             pd.DataFrame: amat with values in {0,1,2}.
         """
-
         if len(self.hidden_nodes()) == 0:
             return self.ground_truth
         else:
@@ -1385,8 +1482,7 @@ class ProductionLineGraph:
             # reverse = lambda tuples: tuples[::-1]
 
             def reverse(tuples):
-                """
-                Simple function to reverse tuple order
+                """Simple function to reverse tuple order.
 
                 Args:
                     tuples (tuple): tuple to reverse order
@@ -1404,7 +1500,7 @@ class ProductionLineGraph:
             return amat_visible
 
     def show(self, meta_description: list | None = None, fig_size: tuple = (15, 8)):
-        """Plot full assembly line
+        """Plot full assembly line.
 
         Args:
             meta_description (list | None, optional): Specify additional cell info.
@@ -1458,27 +1554,51 @@ class ProductionLineGraph:
         )
 
     def __str__(self):
+        """String method for ProductionLineGraph.
+
+        Returns:
+            _type_: _description_
+        """
         s = "ProductionLine\n\n"
         for cell in self.cells:
             s += f"{cell}\n"
         return s
 
     def __getattr__(self, attrname):
+        """Get a cell by its name.
+
+        Args:
+            attrname (_type_): _description_
+
+        Raises:
+            AttributeError: _description_
+
+        Returns:
+            _type_: _description_
+        """
         if attrname not in self.cells.keys():
             raise AttributeError(f"{attrname} is not a valid attribute (cell name?)")
         return self.cells[attrname]
 
-    # https://docs.python.org/3/library/pickle.html#pickle-protocol
-    # TODO why is .cells enough, are the other member vars directly pickable?
     def __getstate__(self):
+        """Get current state of the ProductionLineGraph.
+
+        Returns:
+            _type_: _description_
+        """
         return (self.__dict__, self.cells)
 
     def __setstate__(self, state):
+        """Set state of the ProductionLineGraph.
+
+        Args:
+            state (_type_): _description_
+        """
         self.__dict__, self.cells = state
 
     @classmethod
     def via_cell_number(cls, n_cells: int, cell_prefix: str = "C"):
-        """Inits a ProductionLineGraph with predefined number of cells, e.g. n_cells = 3
+        """Inits a ProductionLineGraph with predefined number of cells, e.g. n_cells = 3.
 
         Will create empty  C0, C1 and C2 as cells if no other cell_prefix is given.
 
@@ -1496,8 +1616,7 @@ class ProductionLineGraph:
         return pl
 
     def _pairs_with_hidden_mediators(self):
-        """
-        Return pairs of nodes with hidden mediators present.
+        """Return pairs of nodes with hidden mediators present.
 
         Args:
             graph (nx.DiGraph): DAG
@@ -1506,6 +1625,7 @@ class ProductionLineGraph:
         Returns:
             list: list of tuples with pairs of nodes with hidden mediator
         """
+        TWO = 2
         any_paths = []
         visible = self.visible_nodes()
         hidden_all = self.hidden_nodes()
@@ -1517,14 +1637,15 @@ class ProductionLineGraph:
                     any_paths.append(path)
 
         pairs_with_hidden_mediators = [
-            (ls[0], ls[-1]) for ls in any_paths if np.all(np.isin(ls[1:-1], hidden)) and len(ls) > 2
+            (ls[0], ls[-1])
+            for ls in any_paths
+            if np.all(np.isin(ls[1:-1], hidden)) and len(ls) > TWO
         ]
 
         return pairs_with_hidden_mediators
 
     def _pairs_with_hidden_confounders(self) -> dict:
-        """
-        Returns node-pairs that have a common hidden confounder
+        """Returns node-pairs that have a common hidden confounder.
 
         Returns:
             dict: Dictionary with keys equal to tuples of node-pairs

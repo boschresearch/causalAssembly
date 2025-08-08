@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from __future__ import annotations
 
 import logging
@@ -52,6 +54,12 @@ class FCM:
     """
 
     def __init__(self, name: str | None = None, seed: int = 2023):
+        """Inits the FCM class.
+
+        Args:
+            name (str | None, optional): Name. Defaults to None.
+            seed (int, optional): Seed. Defaults to 2023.
+        """
         self.name = name
         self._random_state = np.random.default_rng(seed=seed)
         self.__init_dag()
@@ -76,6 +84,7 @@ class FCM:
     @property
     def causal_order(self) -> list[Symbol]:
         """Returns the causal order of the current graph.
+
         Note that this order is in general not unique. To
         ensure uniqueness, we additionally sort lexicograpically.
 
@@ -104,7 +113,7 @@ class FCM:
 
     @property
     def num_nodes(self) -> int:
-        """Number of nodes in the graph
+        """Number of nodes in the graph.
 
         Returns:
             int
@@ -113,7 +122,7 @@ class FCM:
 
     @property
     def num_edges(self) -> int:
-        """Number of edges in the graph
+        """Number of edges in the graph.
 
         Returns:
             int
@@ -122,7 +131,7 @@ class FCM:
 
     @property
     def sparsity(self) -> float:
-        """Sparsity of the graph
+        """Sparsity of the graph.
 
         Returns:
             float: in [0,1]
@@ -132,8 +141,7 @@ class FCM:
 
     @property
     def ground_truth(self) -> pd.DataFrame:
-        """Returns the current ground truth as
-        pandas adjacency.
+        """Returns the current ground truth as pandas adjacency.
 
         Returns:
             pd.DataFrame: Adjacenccy matrix.
@@ -141,8 +149,8 @@ class FCM:
         return nx.to_pandas_adjacency(self.graph, weight=None)
 
     @property
-    def interventions(self) -> list:
-        """Returns all interventions performed on the original graph
+    def interventions(self) -> list[str]:
+        """Returns all interventions performed on the original graph.
 
         Returns:
             list: list of intervened upon nodes in do(x) notation.
@@ -199,6 +207,7 @@ class FCM:
 
     def causal_order_of(self, which_graph: nx.DiGraph) -> list[Symbol]:
         """Returns the causal order of the chosen graph.
+
         Note that this order is in general not unique. To
         ensure uniqueness, we additionally sort lexicograpically.
 
@@ -208,7 +217,9 @@ class FCM:
         return list(nx.lexicographical_topological_sort(which_graph, key=lambda x: str(x)))
 
     def source_nodes_of(self, which_graph: nx.DiGraph) -> list:
-        """Returns the source nodes of a chosen graph. This is mainly for
+        """Returns the source nodes of a chosen graph.
+
+        This is mainly for
         choosing different mutilated DAGs.
 
         Args:
@@ -224,8 +235,8 @@ class FCM:
         ]
 
     def input_fcm(self, fcm: list[Eq]):
-        """
-        Automatically builds up DAG according to the FCM fed in.
+        """Automatically builds up DAG according to the FCM fed in.
+
         Args:
             fcm (list): list of sympy equations generated as:
                     ```[python]
@@ -300,9 +311,12 @@ class FCM:
         snr: None | float = 1 / 2,
         source_df: None | pd.DataFrame = None,
     ) -> pd.DataFrame:
-        """Draw samples from the joint distribution that factorizes
-        according to the DAG implied by the FCM fed in. To avoid
-        unexpected/unintended behavior, avoid defining fully
+        r"""Sample from joint.
+
+        Draw samples from the joint distribution that factorizes
+        according to the DAG implied by the FCM fed in.
+
+        To avoid unexpected/unintended behavior, avoid defining fully
         deterministic equation systems.
         If parameters in noise terms are additive and left unevaluated,
         they're set according to a chosen Signal-To-Noise (SNR) ratio.
@@ -349,8 +363,9 @@ class FCM:
         snr: None | float = 1 / 2,
         source_df: None | pd.DataFrame = None,
     ) -> pd.DataFrame:
-        """Draw samples from the interventional distribution that factorizes
-        according to the mutilated DAG after performing one or multiple
+        r"""Draw samples from the interventional distribution.
+
+        that factorizes according to the mutilated DAG after performing one or multiple
         interventions. Otherwise the method behaves similar to sampling from the
         non-interventional joint distribution. By default samples are drawn from the
         first intervention you performed. If you intervened upon more than one node,
@@ -409,7 +424,9 @@ class FCM:
         snr: None | float = 1 / 2,
         source_df: None | pd.DataFrame = None,
     ) -> pd.DataFrame:
-        """Draw samples from the joint distribution that factorizes
+        r"""Draw samples from the joint distribution.
+
+        that factorizes
         according to the DAG implied by the FCM fed in. To avoid
         unexpected/unintended behavior, avoid defining fully
         deterministic equation systems.
@@ -422,6 +439,7 @@ class FCM:
 
         Args:
             size (int): Number of samples to draw.
+            which_graph (nx.DiGraph): Which graph to sample from.
             additive_gaussian_noise (bool, optional): _description_. Defaults to False.
             snr (None | float, optional): Signal-to-noise ratio
                 \\( SNR =  \\frac{\\text{Var}(\\hat{X})}{\\hat\\sigma^2}. \\).
@@ -439,7 +457,6 @@ class FCM:
             pd.DataFrame:  Data frame with rows of lenght size and columns equal to the
                 number of nodes in the graph.
         """
-
         if source_df is not None and not self.__source_df_condition(source_df):
             raise AssertionError("Names in source_df don't match nodenames in graph.")
 
@@ -512,11 +529,11 @@ class FCM:
                     + str(fcm_expr)
                     + " according to the given SNR."
                 )
-                noise_var = df[str(order)].var() / snr
+                noise_var = df[str(order)].var() / snr  # type: ignore
                 df[str(order)] = df[str(order)] + sympy_sample(
                     fcm_expr.atoms(RandomSymbol)
                     .pop()
-                    .subs(self.__unfree_symbol(fcm_expr), np.sqrt(noise_var)),
+                    .subs(self.__unfree_symbol(fcm_expr), np.sqrt(noise_var)),  # type: ignore
                     size=size,
                     seed=self._random_state,
                 )
@@ -532,9 +549,11 @@ class FCM:
                     )
                 else:
                     noise = symbols("noise")
-                    noise_var = df[str(order)].var() / snr
+                    noise_var = df[str(order)].var() / snr  # type: ignore
                     df[str(noise)] = self._random_state.normal(
-                        loc=0, scale=np.sqrt(noise_var), size=size
+                        loc=0,
+                        scale=np.sqrt(noise_var),  # type: ignore
+                        size=size,
                     )
                     fcm_expr = which_graph.nodes[order]["term"] + noise
                     df[str(order)] = self.__eval_expression(df=df, fcm_expr=fcm_expr)
@@ -552,7 +571,7 @@ class FCM:
         }.pop()
 
     def __eval_expression(self, df: pd.DataFrame, fcm_expr: Expr) -> pd.DataFrame:
-        """Eval given fcm_expression with the values in given dataframe
+        """Eval given fcm_expression with the values in given dataframe.
 
         Args:
             df (pd.DataFrame): Data frame.
@@ -561,7 +580,6 @@ class FCM:
         Returns:
             pd.DataFrame: Data frame after eval.
         """
-
         correct_order = list(ordered(fcm_expr.free_symbols))  # self.__return_ordered_args(fcm_expr)
         cols = [str(col) for col in correct_order]
         evaluator = lambdify(correct_order, fcm_expr, "scipy")
@@ -569,11 +587,11 @@ class FCM:
         return evaluator(*[df[col] for col in cols])
 
     def __distribution_parameters_explicit(self, order: Symbol, which_graph: nx.DiGraph) -> bool:
-        """Returns true if distribution parameters
-        are given explicitly, not symbolically.
+        """Returns true if distribution parameters are given explicitly, not symbolically.
 
         Args:
             order (node): node in graph
+            which_graph (nx.DiGraph): which graph to choose.
 
         Returns:
             bool:
@@ -596,7 +614,9 @@ class FCM:
         )
 
     def intervene_on(self, nodes_values: dict[Symbol, RandomSymbol | float]):
-        """Specify hard or soft intervention. If you want to intervene
+        """Specify hard or soft intervention.
+
+        If you want to intervene
         upon more than one node provide a list of nodes to intervene on
         and a list of corresponding values to set these nodes to.
         (see example). The mutilated dag will automatically be
@@ -625,7 +645,6 @@ class FCM:
 
             ```
         """
-
         if not set(nodes_values.keys()).issubset(set(self.nodes)):
             raise AssertionError(
                 "One or more nodes you want to intervene upon are not in the graph."
@@ -640,11 +659,11 @@ class FCM:
             mutilated_dag.remove_edges_from(edges_to_remove)
             mutilated_dag.nodes[node]["term"] = intervention.rhs
 
-        self.mutilated_dags[
-            f"do({list(nodes_values.keys())})"
-        ] = mutilated_dag  # specifiying the same set twice will override
+        self.mutilated_dags[f"do({list(nodes_values.keys())})"] = (
+            mutilated_dag  # specifiying the same set twice will override
+        )
 
-    def show(self, header: str | None = None, with_nodenames: bool = True) -> plt:
+    def show(self, header: str | None = None, with_nodenames: bool = True):
         """Plots the current DAG.
 
         Args:
@@ -659,10 +678,8 @@ class FCM:
             header = ""
         return self._show(which_graph=self.graph, header=header, with_nodenames=with_nodenames)
 
-    def show_mutilated_dag(
-        self, which_intervention: str | int = 0, with_nodenames: bool = True
-    ) -> plt:
-        """Plot mutilated DAG
+    def show_mutilated_dag(self, which_intervention: str | int = 0, with_nodenames: bool = True):
+        """Plot mutilated DAG.
 
         Args:
             which_intervention (str | int, optional): Which interventional distribution
@@ -683,8 +700,12 @@ class FCM:
         )
 
     def _show(self, which_graph: nx.DiGraph, header: str, with_nodenames: bool):
-        """Plots the graph by giving extra weight to nodes
-        with high in- and out-degree.
+        """Plots the graph by giving extra weight to nodes with high in- and out-degree.
+
+        Args:
+            which_graph (nx.DiGraph): _description_
+            header (str): _description_
+            with_nodenames (bool): _description_
         """
         cmap = plt.get_cmap("Blues")
         fig, ax = plt.subplots()
@@ -712,10 +733,10 @@ class FCM:
             vmax=1,
             node_color=[
                 (d + 10) / (max_in_degree + 10) for _, d in which_graph.in_degree(self.nodes)
-            ],
+            ],  # type: ignore
             node_size=[
                 500 * (d + 1) / (max_out_degree + 1) for _, d in which_graph.out_degree(self.nodes)
-            ],
+            ],  # type: ignore
         )
 
         if with_nodenames:

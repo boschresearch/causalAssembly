@@ -6,7 +6,7 @@
 This repo provides details regarding $\texttt{causalAssembly}$, a causal discovery benchmark data tool based on complex production data.
 Theoretical details and information regarding construction are presented in the [paper](https://arxiv.org/abs/2306.10816):
 
-    Göbler, K., Windisch, T., Pychynski, T., Sonntag, S., Roth, M., & Drton, M. causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery, to appear in Proceedings of the 3rd Conference on Causal Learning and Reasoning (CLeaR), 2024, 
+    Göbler, K., Windisch, T., Pychynski, T., Sonntag, S., Roth, M., & Drton, M. causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery, to appear in Proceedings of the 3rd Conference on Causal Learning and Reasoning (CLeaR), 2024,
 ## Authors
 * [Konstantin Goebler](mailto:konstantin.goebler@de.bosch.com)
 * [Steffen Sonntag](mailto:steffen.sonntag@de.bosch.com)

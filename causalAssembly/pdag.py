@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -27,17 +28,32 @@ logger = logging.getLogger(__name__)
 
 
 class PDAG:
-    """
-    Class for dealing with partially directed graph i.e.
-    graphs that contain both directed and undirected edges.
+    """Class for dealing with partially directed graphs.
+
+    i.e., graphs that contain both directed and undirected edges.
     """
 
     def __init__(
         self,
-        nodes: list | None = None,
-        dir_edges: list[tuple] | None = None,
-        undir_edges: list[tuple] | None = None,
+        nodes: list[str] | list[int] | set[str] | set[int] | None = None,
+        dir_edges: list[tuple[str, str]]
+        | list[tuple[int, int]]
+        | set[tuple[str, str]]
+        | set[tuple[int, int]]
+        | None = None,
+        undir_edges: list[tuple[str, str]]
+        | list[tuple[int, int]]
+        | set[tuple[str, str]]
+        | set[tuple[int, int]]
+        | None = None,
     ):
+        """Inits the PDAG class.
+
+        Args:
+            nodes (list | None, optional): _description_. Defaults to None.
+            dir_edges (list[tuple] | None, optional): _description_. Defaults to None.
+            undir_edges (list[tuple] | None, optional): _description_. Defaults to None.
+        """
         if nodes is None:
             nodes = []
         if dir_edges is None:
@@ -80,7 +96,7 @@ class PDAG:
         self._undirected_neighbors[i].add(j)
         self._undirected_neighbors[j].add(i)
 
-    def children(self, node: str) -> set:
+    def children(self, node: str | int) -> set:
         """Gives all children of node `node`.
 
         Args:
@@ -94,7 +110,7 @@ class PDAG:
         else:
             return set()
 
-    def parents(self, node: str) -> set:
+    def parents(self, node: str | int) -> set:
         """Gives all parents of node `node`.
 
         Args:
@@ -108,7 +124,7 @@ class PDAG:
         else:
             return set()
 
-    def neighbors(self, node: str) -> set:
+    def neighbors(self, node: str | int) -> set:
         """Gives all neighbors of node `node`.
 
         Args:
@@ -122,9 +138,8 @@ class PDAG:
         else:
             return set()
 
-    def undir_neighbors(self, node: str) -> set:
-        """Gives all undirected neighbors
-        of node `node`.
+    def undir_neighbors(self, node: str | int) -> set:
+        """Gives all undirected neighbors of node `node`.
 
         Args:
             node (str): node in current PDAG.
@@ -138,8 +153,7 @@ class PDAG:
             return set()
 
     def is_adjacent(self, i: str, j: str) -> bool:
-        """Return True if the graph contains an directed
-        or undirected edge between i and j.
+        """Return True if the graph contains an directed or undirected edge between i and j.
 
         Args:
             i (str): node i.
@@ -156,9 +170,7 @@ class PDAG:
         )
 
     def is_clique(self, potential_clique: set) -> bool:
-        """
-        Check every pair of node X potential_clique is adjacent.
-        """
+        """Check every pair of node X potential_clique is adjacent."""
         return all(self.is_adjacent(i, j) for i, j in combinations(potential_clique, 2))
 
     @classmethod
@@ -172,7 +184,7 @@ class PDAG:
             PDAG
         """
         assert pd_amat.shape[0] == pd_amat.shape[1]
-        nodes = pd_amat.columns
+        nodes = list(pd_amat.columns)
 
         all_connections = []
         start, end = np.where(pd_amat != 0)
@@ -188,7 +200,7 @@ class PDAG:
         return PDAG(nodes=nodes, dir_edges=dir_edges, undir_edges=undir_edges)
 
     def remove_edge(self, i: str, j: str):
-        """Removes edge in question
+        """Removes edge in question.
 
         Args:
             i (str): tail
@@ -211,6 +223,7 @@ class PDAG:
 
     def undir_to_dir_edge(self, tail: str, head: str):
         """Takes a undirected edge and turns it into a directed one.
+
         tail indicates the starting node of the edge and head the end node, i.e.
         tail -> head.
 
@@ -236,12 +249,12 @@ class PDAG:
         self._add_dir_edge(i=tail, j=head)
 
     def remove_node(self, node):
-        """Remove a node from the graph"""
+        """Remove a node from the graph."""
         self._nodes.remove(node)
 
-        self._dir_edges = {(i, j) for i, j in self._dir_edges if i != node and j != node}
+        self._dir_edges = {(i, j) for i, j in self._dir_edges if node not in (i, j)}
 
-        self._undir_edges = {(i, j) for i, j in self._undir_edges if i != node and j != node}
+        self._undir_edges = {(i, j) for i, j in self._undir_edges if node not in (i, j)}
 
         for child in self._children[node]:
             self._parents[child].remove(node)
@@ -261,8 +274,7 @@ class PDAG:
         self._undirected_neighbors.pop(node, "I was never here")
 
     def to_dag(self) -> nx.DiGraph:
-        """
-        Algorithm as described in Chickering (2002):
+        r"""Algorithm as described in Chickering (2002).
 
             1. From PDAG P create DAG G containing all directed edges from P
             2. Repeat the following: Select node v in P s.t.
@@ -278,7 +290,6 @@ class PDAG:
         Returns:
             nx.DiGraph: DAG that belongs to the MEC implied by the PDAG
         """
-
         pdag = self.copy()
 
         dag = nx.DiGraph()
@@ -308,7 +319,7 @@ class PDAG:
                         for edge in pdag.undir_edges:
                             if node in edge:
                                 incident_node = set(edge) - {node}
-                                dag.add_edge(*incident_node, node)
+                                dag.add_edge(*incident_node, node)  # type: ignore
 
                         pdag.remove_node(node)
                         break
@@ -324,7 +335,9 @@ class PDAG:
 
     @property
     def adjacency_matrix(self) -> pd.DataFrame:
-        """Returns adjacency matrix where the i,jth
+        """Returns adjacency matrix.
+
+        The i,jth
         entry being one indicates that there is an edge
         from i to j. A zero indicates that there is no edge.
 
@@ -343,7 +356,9 @@ class PDAG:
         return amat
 
     def _amat_to_dag(self) -> pd.DataFrame:
-        """Transform the adjacency matrix of an PDAG to the adjacency
+        """Adjacency matrix to random DAG.
+
+        Transform the adjacency matrix of an PDAG to the adjacency
         matrix of a SOME DAG in the Markov equivalence class.
 
         Returns:
@@ -375,7 +390,7 @@ class PDAG:
         )
 
     def vstructs(self) -> set:
-        """Retrieve v-structures
+        """Retrieve v-structures.
 
         Returns:
             set: set of all v-structures
@@ -389,8 +404,8 @@ class PDAG:
         return vstructures
 
     def copy(self):
-        """Return a copy of the graph"""
-        return PDAG(nodes=self._nodes, dir_edges=self._dir_edges, undir_edges=self._undir_edges)
+        """Return a copy of the graph."""
+        return PDAG(nodes=self._nodes, dir_edges=self._dir_edges, undir_edges=self._undir_edges)  # type: ignore
 
     def show(self):
         """Plot PDAG."""
@@ -414,8 +429,8 @@ class PDAG:
         return nx_pdag
 
     def _meek_mec_enumeration(self, pdag: PDAG, dag_list: list):
-        """Recursion algorithm which recursively applies the
-        following steps:
+        """Recursion algorithm which recursively applies the following steps.
+
             1. Orient the first undirected edge found.
             2. Apply Meek rules.
             3. Recurse with each direction of the oriented edge.
@@ -455,8 +470,8 @@ class PDAG:
         self._meek_mec_enumeration(pdag=g_copy, dag_list=dag_list)
 
     def to_allDAGs(self) -> list[nx.DiGraph]:
-        """Recursion algorithm which recursively applies the
-        following steps:
+        """Recursion algorithm which recursively applies the following steps.
+
             1. Orient the first undirected edge found.
             2. Apply Meek rules.
             3. Recurse with each direction of the oriented edge.
@@ -473,8 +488,7 @@ class PDAG:
 
     # use Meek's cpdag2alldag
     def _apply_meek_rules(self, G: PDAG) -> PDAG:
-        """Apply all four Meek rules to a
-        PDAG turning it into a CPDAG.
+        """Apply all four Meek rules to a PDAG turning it into a CPDAG.
 
         Args:
             G (PDAG): PDAG to complete
@@ -511,13 +525,13 @@ class PDAG:
         return nx.from_pandas_adjacency(to_dag_candidate.adjacency_matrix, create_using=nx.DiGraph)
 
     @property
-    def nodes(self) -> list:
+    def nodes(self) -> list[str] | list[int]:
         """Get all nods in current PDAG.
 
         Returns:
             list: list of nodes.
         """
-        return sorted(list(self._nodes))
+        return sorted(list(self._nodes))  # type: ignore
 
     @property
     def nnodes(self) -> int:
@@ -530,8 +544,7 @@ class PDAG:
 
     @property
     def num_undir_edges(self) -> int:
-        """Number of undirected edges
-        in current PDAG.
+        """Number of undirected edges in current PDAG.
 
         Returns:
             int: Number of undirected edges
@@ -540,8 +553,7 @@ class PDAG:
 
     @property
     def num_dir_edges(self) -> int:
-        """Number of directed edges
-        in current PDAG.
+        """Number of directed edges in current PDAG.
 
         Returns:
             int: Number of directed edges
@@ -550,8 +562,7 @@ class PDAG:
 
     @property
     def num_adjacencies(self) -> int:
-        """Number of adjacent nodes
-        in current PDAG.
+        """Number of adjacent nodes in current PDAG.
 
         Returns:
             int: Number of adjacent nodes
@@ -560,8 +571,7 @@ class PDAG:
 
     @property
     def undir_edges(self) -> list[tuple]:
-        """Gives all undirected edges in
-        current PDAG.
+        """Gives all undirected edges in current PDAG.
 
         Returns:
             list[tuple]: List of undirected edges.
@@ -570,8 +580,7 @@ class PDAG:
 
     @property
     def dir_edges(self) -> list[tuple]:
-        """Gives all directed edges in
-        current PDAG.
+        """Gives all directed edges in current PDAG.
 
         Returns:
             list[tuple]: List of directed edges.
@@ -598,7 +607,9 @@ def vstructs(dag: nx.DiGraph) -> set:
 
 
 def rule_1(pdag: PDAG) -> PDAG:
-    """Given the following pattern X -> Y - Z. Orient Y - Z to Y -> Z
+    """Meeks first rule.
+
+    Given the following pattern X -> Y - Z. Orient Y - Z to Y -> Z
     if X and Z are non-adjacent (otherwise a new v-structure arises).
 
     Args:
@@ -625,7 +636,9 @@ def rule_1(pdag: PDAG) -> PDAG:
 
 
 def rule_2(pdag: PDAG) -> PDAG:
-    """Given the following directed triple
+    """Meeks 2nd rule.
+
+    Given the following directed triple
     X -> Y -> Z where X - Z are indeed adjacent.
     Orient X - Z to X -> Z otherwise a cycle arises.
 
@@ -653,7 +666,9 @@ def rule_2(pdag: PDAG) -> PDAG:
 
 
 def rule_3(pdag: PDAG) -> PDAG:
-    """Orient X - Z to X -> Z, whenever there are two triples
+    """Meeks third rule.
+
+    Orient X - Z to X -> Z, whenever there are two triples
     X - Y1 -> Z and X - Y2 -> Z such that Y1 and Y2 are non-adjacent.
 
     Args:
@@ -662,6 +677,7 @@ def rule_3(pdag: PDAG) -> PDAG:
     Returns:
         PDAG: PDAG after application of rule.
     """
+    TWO = 2
     copy_pdag = pdag.copy()
     for edge in copy_pdag.undir_edges:
         reverse_edge = edge[::-1]
@@ -670,7 +686,7 @@ def rule_3(pdag: PDAG) -> PDAG:
             # if true that tail - node1 -> head and tail - node2 -> head
             # while {node1 U node2} = 0 then orient tail -> head
             orient = False
-            if len(copy_pdag.undir_neighbors(tail)) >= 2:
+            if len(copy_pdag.undir_neighbors(tail)) >= TWO:
                 undir_n = copy_pdag.undir_neighbors(tail)
                 selection = [
                     (node1, node2)
@@ -688,7 +704,9 @@ def rule_3(pdag: PDAG) -> PDAG:
 
 
 def rule_4(pdag: PDAG) -> PDAG:
-    """Orient X - Y1 to X -> Y1, whenever there are
+    """Meeks 4th rule.
+
+    Orient X - Y1 to X -> Y1, whenever there are
     two triples with X - Z and X - Y1 <- Z and X - Y2 -> Z
     such that Y1 and Y2 are non-adjacent.
 
@@ -720,7 +738,7 @@ def rule_4(pdag: PDAG) -> PDAG:
 
 
 def dag2cpdag(dag: nx.DiGraph) -> PDAG:
-    """Convertes a DAG into its unique CPDAG
+    """Convertes a DAG into its unique CPDAG.
 
     Args:
         dag (nx.DiGraph): DAG the CPDAG corresponds to.
@@ -728,7 +746,7 @@ def dag2cpdag(dag: nx.DiGraph) -> PDAG:
     Returns:
         PDAG: unique CPDAG
     """
-    copy_dag = dag.copy()
+    copy_dag: nx.DiGraph = dag.copy()  # type: ignore
     # Skeleton
     skeleton = nx.to_pandas_adjacency(copy_dag.to_undirected())
     # v-Structures
