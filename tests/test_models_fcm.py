@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -24,8 +25,19 @@ from causalAssembly.models_fcm import FCM
 
 
 class TestFCM:
+    """Test FCM class.
+
+    Returns:
+        _type_: _description_
+    """
+
     @pytest.fixture(scope="class")
     def example_fcm(self):
+        """Set up example fcm.
+
+        Returns:
+            _type_: _description_
+        """
         x, y, z = symbols("x,y,z")
 
         eq_x = Eq(x, Uniform("error", left=-1, right=1))
@@ -35,12 +47,17 @@ class TestFCM:
         eq_list = [eq_x, eq_y, eq_z]
 
         example_fcm = FCM(name="example_fcm", seed=2023)
-        example_fcm.input_fcm(eq_list)
+        example_fcm.input_fcm(eq_list)  # type: ignore
 
         return example_fcm
 
     @pytest.fixture(scope="class")
     def medium_example_fcm(self) -> FCM:
+        """Set up medium size exmaple.
+
+        Returns:
+            FCM: _description_
+        """
         v, x, y, z = symbols("v,x,y,z")
 
         eq_x = Eq(x, Normal("error", 0, 1))
@@ -51,24 +68,29 @@ class TestFCM:
         eq_list = [eq_v, eq_x, eq_y, eq_z]
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
         return test_fcm
 
     def test_instance_is_created(self):
+        """TEst instance created."""
         h = FCM(name="mymodel", seed=1234)
         assert isinstance(h, FCM)
 
     def test_input_fcm_works(self, example_fcm):
+        """Test input works."""
+        THREE = 3
         # Act
         x, y = symbols("x,y")
 
         # Assert
         assert len(example_fcm.source_nodes) == 1
-        assert example_fcm.num_nodes == 3
-        assert example_fcm.num_edges == 3
+        assert example_fcm.num_nodes == THREE
+        assert example_fcm.num_edges == THREE
         assert (x, y) in example_fcm.edges
 
     def test_empty_graph_works(self):
+        """Test empty graph works."""
+        THREE = 3
         # Arrange
         x, y, z = symbols("x,y,z")
 
@@ -78,24 +100,31 @@ class TestFCM:
 
         # Act
         test_fcm = FCM()
-        test_fcm.input_fcm([eq_x, eq_y, eq_z])
+        test_fcm.input_fcm([eq_x, eq_y, eq_z])  # type: ignore
 
         df = test_fcm.sample(size=5)
 
         # Assert
 
-        assert test_fcm.num_nodes == 3
+        assert test_fcm.num_nodes == THREE
         assert test_fcm.num_edges == 0
         assert df.shape == (5, 3)
 
     def test_draw_without_noise_works(self, example_fcm):
+        """Test w/o noise.
+
+        Args:
+            example_fcm (_type_): _description_
+        """
+        TEN = 10
         # Act
         df = example_fcm.sample(size=10, additive_gaussian_noise=False)
 
         # Assert
-        assert len(df) == 10
+        assert len(df) == TEN
 
     def test_draw_with_noise_works(self, example_fcm):
+        """Test w/o noise."""
         # Act
         df_without_noise = example_fcm.sample(size=10, additive_gaussian_noise=False)
         df_with_noise = example_fcm.sample(size=10, additive_gaussian_noise=True)
@@ -106,6 +135,11 @@ class TestFCM:
             assert not np.allclose(df_without_noise[col], df_with_noise[col])
 
     def test_draw_from_dataframe(self, example_fcm: FCM):
+        """Test draw from df.
+
+        Args:
+            example_fcm (FCM): _description_
+        """
         # Arrange
         source_df = pd.DataFrame()
         source_df["x"] = [0, 1.0, 10.0]
@@ -125,6 +159,7 @@ class TestFCM:
         )
 
     def test_draw_from_wrong_dataframe_raises_assertionerror(self, example_fcm):
+        """Test draw error."""
         source_df = pd.DataFrame()
         source_df["AAA"] = [0, 1.0, 10.0]
 
@@ -133,6 +168,8 @@ class TestFCM:
             example_fcm.sample(size=3, source_df=source_df, additive_gaussian_noise=False)
 
     def test_specify_individual_noise(self):
+        """Test individual noise."""
+        THREE = 3
         # Arrange
         x, y, z = symbols("x,y,z")
 
@@ -143,7 +180,7 @@ class TestFCM:
         eq_list = [eq_x, eq_y, eq_z]
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Act
 
@@ -151,10 +188,11 @@ class TestFCM:
 
         # Assert
 
-        assert test_fcm.num_edges == 3
+        assert test_fcm.num_edges == THREE
         assert df.shape == (10, 3)
 
     def test_order_in_eval_always_correct(self):
+        """Test order is correct when evaluating."""
         # Arrange
         v, w, x, y, z = symbols("v,w,x,y,z")
         eq_v = Eq(v, Uniform("noise", left=0.2, right=0.8))
@@ -167,7 +205,7 @@ class TestFCM:
 
         # Act
         test_fcm = FCM()
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
         df = test_fcm.sample(size=10)
         # Assert
         assert all(np.isclose(df["x"], 27 - df["v"]))
@@ -175,6 +213,8 @@ class TestFCM:
         assert all(np.isclose(df["z"], (df["x"] + df["y"]) / df["v"]))
 
     def test_select_scale_parameter_via_snr(self):
+        """Test scale param."""
+        THREE = 3
         # Arrange
         x, y, z = symbols("x,y,z")
         sigma = Symbol("sigma", positive=True)
@@ -186,7 +226,7 @@ class TestFCM:
         eq_list = [eq_x, eq_y, eq_z]
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Act
 
@@ -194,10 +234,11 @@ class TestFCM:
 
         # Assert
 
-        assert test_fcm.num_edges == 3
+        assert test_fcm.num_edges == THREE
         assert df.shape == (10, 3)
 
     def test_select_scale_parameter_via_snr_gives_error_when_not_additive(self):
+        """TEst sclae param set via snr."""
         # Arrange
         x, y, z = symbols("x,y,z")
         sigma = Symbol("sigma", positive=True)
@@ -209,13 +250,19 @@ class TestFCM:
         eq_list = [eq_x, eq_y, eq_z]
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Assert
         with pytest.raises(ValueError):
             test_fcm.sample(size=10, snr=0.6)
 
     def test_data_frame_with_fewer_columns_than_source_nodes(self, medium_example_fcm: FCM):
+        """Test df with few cols.
+
+        Args:
+            medium_example_fcm (FCM): _description_
+        """
+        FOUR = 4
         # Act
         source_df = pd.DataFrame(
             {
@@ -226,10 +273,15 @@ class TestFCM:
 
         df = medium_example_fcm.sample(size=10, snr=0.6, source_df=source_df)
         # Assert
-        assert medium_example_fcm.num_edges == 4
+        assert medium_example_fcm.num_edges == FOUR
         assert df.shape == (10, 4)
 
     def test_data_frame_too_few_rows(self, medium_example_fcm: FCM):
+        """Test df too few rows.
+
+        Args:
+            medium_example_fcm (FCM): _description_
+        """
         # Act
         source_df = pd.DataFrame(
             {
@@ -243,6 +295,7 @@ class TestFCM:
             medium_example_fcm.sample(size=10, snr=0.6, source_df=source_df)
 
     def test_polynomial_equation_works(self):
+        """Test polynomial eq."""
         # Arrange
         x, y = symbols("x,y")
 
@@ -250,12 +303,14 @@ class TestFCM:
         eq_y = Eq(y, x**2 - 2 * x + 5)
 
         test_fcm = FCM()
-        test_fcm.input_fcm([eq_x, eq_y])
+        test_fcm.input_fcm([eq_x, eq_y])  # type: ignore
         # Act
         df = test_fcm.sample(size=5)
         assert all(df["y"] == df["x"] ** 2 - 2 * df["x"] + 5)
 
     def test_display_functions_works(self):
+        """Test display."""
+        FOUR = 4
         # Arrange
         v, x, y, z = symbols("v,x,y,z")
 
@@ -267,17 +322,18 @@ class TestFCM:
         eq_list = [eq_v, eq_x, eq_y, eq_z]
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
         # Act
         functions_dict = test_fcm.display_functions()
         # Assert
         assert isinstance(functions_dict, dict)
-        assert len(functions_dict) == 4
+        assert len(functions_dict) == FOUR
         assert str(functions_dict[x]) == str(functions_dict[v]) == "error"
         assert functions_dict[y] == eq_y.rhs
         assert functions_dict[z] == eq_z.rhs
 
     def test_show_individual_function(self):
+        """Test indiv. functions."""
         # Arrange
         v, x, y, z = symbols("v,x,y,z")
 
@@ -289,16 +345,17 @@ class TestFCM:
         eq_list = [eq_v, eq_x, eq_y, eq_z]
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
         # Assert
         assert isinstance(test_fcm.function_of(node=x), dict)
         with pytest.raises(AssertionError):
-            test_fcm.function_of(node="x")
+            test_fcm.function_of(node="x")  # type: ignore
         with pytest.raises(AssertionError):
-            test_fcm.function_of(node="m")
+            test_fcm.function_of(node="m")  # type: ignore
         assert test_fcm.function_of(node=y) == {y: eq_y.rhs}
 
     def test_single_hard_intervention(self):
+        """Test hard inter."""
         # Arrange
         x, y, z = symbols("x,y,z")
 
@@ -309,7 +366,7 @@ class TestFCM:
         eq_list = [eq_x, eq_y, eq_z]
 
         test_fcm = FCM()
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Act
         test_fcm.intervene_on({y: 2.5})
@@ -324,7 +381,9 @@ class TestFCM:
         assert np.isclose(test_df["y"].mean(), 2.5)
 
     def test_single_soft_intervention(self):
+        """TEst soft interv."""
         # Arrange
+        point_three = 0.3
         x, y, z = symbols("x,y,z")
 
         eq_x = Eq(x, Normal("error", 0, 1))
@@ -334,7 +393,7 @@ class TestFCM:
         eq_list = [eq_x, eq_y, eq_z]
 
         test_fcm = FCM()
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Act
         test_fcm.intervene_on({z: Uniform("noise", left=-0.3, right=0.3)})
@@ -346,9 +405,10 @@ class TestFCM:
         assert test_fcm.interventions[0] == "do([z])"
         assert len(test_fcm.mutilated_dags) == 1
         assert len(test_fcm.mutilated_dags["do([z])"].edges()) == test_fcm.num_edges - 2
-        assert -0.3 < test_df["z"].min() and test_df["z"].min() < 0.3
+        assert -point_three < test_df["z"].min() and test_df["z"].min() < point_three
 
     def test_multiple_interventions_at_once(self):
+        """Test mutliple interv."""
         # Arrange
         v, x, y, z = symbols("v,x,y,z")
 
@@ -360,7 +420,7 @@ class TestFCM:
         eq_list = [eq_v, eq_x, eq_y, eq_z]
 
         test_fcm = FCM()
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Act
         test_fcm.intervene_on({v: 5, z: Normal("error", 0, 1)})
@@ -374,6 +434,8 @@ class TestFCM:
         assert np.isclose(test_df["v"].mean(), 5)
 
     def test_multiple_interventions_sequentually(self):
+        """Test interv. sequentially."""
+        TWO = 2
         # Arrange
         v, x, y, z = symbols("v,x,y,z")
 
@@ -385,7 +447,7 @@ class TestFCM:
         eq_list = [eq_v, eq_x, eq_y, eq_z]
 
         test_fcm = FCM()
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         # Act
         test_fcm.intervene_on({v: 5})
@@ -395,13 +457,14 @@ class TestFCM:
         test_fcm.interventional_sample(size=5, which_intervention=1)
 
         # Assert
-        assert len(test_fcm.interventions) == 2
-        assert len(test_fcm.mutilated_dags) == 2
+        assert len(test_fcm.interventions) == TWO
+        assert len(test_fcm.mutilated_dags) == TWO
         assert len(test_fcm.mutilated_dags["do([v])"].edges()) == test_fcm.num_edges - 1
         assert len(test_fcm.mutilated_dags["do([z])"].edges()) == test_fcm.num_edges - 2
         assert np.isclose(test_df_1["v"].mean(), 5)
 
     def test_reproducability(self):
+        """Test repoducability."""
         # Arrange
         v, x, y, z, sigma = symbols("v,x,y,z,sigma")
 
@@ -414,7 +477,7 @@ class TestFCM:
 
         # Act
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         source_df = pd.DataFrame(
             {
@@ -425,7 +488,7 @@ class TestFCM:
         df_a = test_fcm.sample(size=5, snr=2 / 3, additive_gaussian_noise=True, source_df=source_df)
 
         test_fcm = FCM(name="testing", seed=2023)
-        test_fcm.input_fcm(eq_list)
+        test_fcm.input_fcm(eq_list)  # type: ignore
 
         df_b = test_fcm.sample(size=5, snr=2 / 3, additive_gaussian_noise=True, source_df=source_df)
 

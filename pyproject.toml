@@ -22,7 +22,7 @@ dependencies = [
     "requests",
 ]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 
 [project.urls]
 Homepage = "https://github.com/boschresearch/causalAssembly"
@@ -38,10 +38,13 @@ dev = [
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
-    "ruff",
+    "pip-licenses",
     "pip-tools",
     "pre-commit",
     "pytest",
+    "pytest-cov",
+    "ruff",
+    "uv",
 ]
 
 [tool.setuptools.packages.find]
@@ -54,35 +57,62 @@ version = { file = "VERSION" }
 
 [tool.ruff]
 
-select = ["A", "E", "F", "I"]
-ignore = []
+exclude = [
+    ".github",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    #"notebooks/",
+]
 
-fixable = ["A", "B", "C", "D", "E", "F", "I"]
-unfixable = []
+extend-include = ["*.ipynb"]
 
 line-length = 100
 
-target-version = "py310"
-
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "UP",  # pyupgrade
+    "D",   # pydocstyle
+    "PL",  # pylint
+    "TD",  # flake8-todos
+    "C90", # McCabe
 ]
-per-file-ignores = {}
+
+ignore = []
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 27
+
+[tool.ruff.lint.pylint]
+max-args = 15
+max-branches = 30
+max-statements = 100
+
+[tool.pytest.ini_options]
+addopts = "--cov=gresit --cov-fail-under=60"
+testpaths = ["tests"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"

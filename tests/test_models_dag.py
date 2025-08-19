@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import math
 import os
 import pickle
@@ -20,29 +22,46 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
-from sympy.stats import Beta
 
 from causalAssembly.models_dag import NodeAttributes, ProcessCell, ProductionLineGraph
 
 
 class TestProcessCell:
+    """Test process Cell.
+
+    Returns:
+        _type_: _description_
+    """
+
     @pytest.fixture(scope="class")
     def cell(self):
+        """Set up a ProcessCell instance.
+
+        Returns:
+            _type_: _description_
+        """
         c = ProcessCell(name="PYTEST")
         return c
 
     @pytest.fixture(scope="class")
     def module(self):
+        """Set up a module for testing.
+
+        Returns:
+            _type_: _description_
+        """
         m = nx.DiGraph()
         m.add_nodes_from(["A", "B", "C"])
         m.add_edges_from([("A", "B"), ("B", "C")])
         return m
 
     def test_instance_is_created(self):
+        """Test whether an instance of ProcessCell can be created with a name."""
         cell = ProcessCell(name="PYTEST")
         assert isinstance(cell, ProcessCell)
 
     def test_next_module_prefix_works(self):
+        """Test whether the next module prefix is generated correctly."""
         # Arrange
         cell = ProcessCell(name="PYTEST")
 
@@ -55,10 +74,18 @@ class TestProcessCell:
         assert cell.next_module_prefix() == "ABC1"
 
     def test_module_prefix_setter_works(self, cell):
+        """TEst that the module prefix can be set correctly.
+
+        Args:
+            cell (_type_): _description_
+        """
         with pytest.raises(ValueError):
             cell.module_prefix = 1
 
     def test_add_module_works(self, module):
+        """Test that a module can be added to the ProcessCell."""
+        TWO = 2
+        SIX = 6
         # Arrange
         cell = ProcessCell(name="C01")
         cell.module_prefix = "M"
@@ -68,11 +95,16 @@ class TestProcessCell:
         cell.add_module(module)
 
         # Assert
-        assert len(cell.modules) == 2
-        assert len(cell.graph.nodes()) == 6
+        assert len(cell.modules) == TWO
+        assert len(cell.graph.nodes()) == SIX
         assert cell.next_module_prefix() == "M3"
 
     def test_connect_by_module_works(self, module):
+        """Test that modules can be connected by edges.
+
+        Args:
+            module (_type_): _description_
+        """
         # Arrange
         cell = ProcessCell(name="PyTestCell")
         m1 = cell.add_module(graph=module)
@@ -92,6 +124,12 @@ class TestProcessCell:
         ids=["source node invalid", "target node invalid"],
     )
     def test_connect_by_module_fails_with_wrong_node_name(self, module, edges):
+        """Test that module connections fails when node names are invalid.
+
+        Args:
+            module (_type_): _description_
+            edges (_type_): _description_
+        """
         # Arrange
         cell = ProcessCell(name="PyTestCell")
 
@@ -104,6 +142,11 @@ class TestProcessCell:
             cell.connect_by_module(m1=m1, m2=m2, edges=edges)
 
     def test_node_property(self, module):
+        """Test properties of the nodes.
+
+        Args:
+            module (_type_): _description_
+        """
         # Arrange
         cell = ProcessCell(name="PyTest")
 
@@ -116,6 +159,11 @@ class TestProcessCell:
         assert len(cell.nodes) == expected_no_of_nodes
 
     def test_repr_is_working(self, module):
+        """Test repr is working.
+
+        Args:
+            module (_type_): _description_
+        """
         # Arrange
         cell = ProcessCell(name="PyTest")
 
@@ -131,6 +179,11 @@ class TestProcessCell:
         ids=["sparsity=0.0", "sparsity=0.1", "sparsity=1.0"],
     )
     def test_connect_by_random_edges(self, sparsity):
+        """Test whether connecting with random edges works.
+
+        Args:
+            sparsity (_type_): _description_
+        """
         pline = ProductionLineGraph()
         pline.new_cell(name="C1")
         # Arrange
@@ -149,6 +202,7 @@ class TestProcessCell:
         assert len(c.graph.edges) == expected_edges
 
     def test_connect_by_random_edges_fails_with_cyclic_graph(self):
+        """Test failure with cyclic graphs."""
         pline = ProductionLineGraph()
         pline.new_cell(name="C1")
         # Arrange
@@ -166,6 +220,11 @@ class TestProcessCell:
             c.connect_by_random_edges()
 
     def test_get_nodes_by_attribute(self, module):
+        """Test get nodes by attribute.
+
+        Args:
+            module (_type_): _description_
+        """
         c = ProcessCell(name="C1")
         c.add_module(graph=module)
 
@@ -174,15 +233,18 @@ class TestProcessCell:
         assert NodeAttributes.ALLOW_IN_EDGES in available_attributes
 
     def test_input_cellgraph_directly_works(self):
+        """Test whether cellgraph is inputted correctly."""
+        THREE = 3
         toygraph = nx.DiGraph()
         toygraph.add_edges_from([("a", "b"), ("a", "c"), ("b", "c")])
 
         c = ProcessCell(name="toycell")
         c.input_cellgraph_directly(toygraph)
-        assert len(c.nodes) == 3
+        assert len(c.nodes) == THREE
         assert c.nodes == ["toycell_a", "toycell_b", "toycell_c"]
 
     def test_ground_truth_cell(self):
+        """Test ground truth."""
         pline = ProductionLineGraph()
         pline.new_cell(name="test")
         pline.test.add_random_module()
@@ -195,11 +257,15 @@ class TestProcessCell:
 
 
 class TestProductionLineGraph:
+    """Test ProductionLineGraph."""
+
     def test_instance_is_created(self):
+        """Test whether instance is created."""
         p = ProductionLineGraph()
         assert isinstance(p, ProductionLineGraph)
 
     def test_getattr_works(self):
+        """Test getattr."""
         # Arrange
         station_name = "Station1"
         p = ProductionLineGraph()
@@ -211,6 +277,7 @@ class TestProductionLineGraph:
             p.XXX
 
     def test_str_representation(self):
+        """Test str."""
         p = ProductionLineGraph()
         p.new_cell(name="C1")
         p.C1.add_random_module(n_nodes=10)
@@ -218,6 +285,7 @@ class TestProductionLineGraph:
         assert isinstance(str(p), str)
 
     def test_create_cell_works(self):
+        """Test cell creation."""
         p = ProductionLineGraph()
         c1 = p.new_cell()
 
@@ -225,12 +293,14 @@ class TestProductionLineGraph:
         assert c1.name == "C0"
 
     def test_create_cell_with_name_works(self):
+        """Test cell with name."""
         p = ProductionLineGraph()
         c1 = p.new_cell(name="PyTest")
 
         assert c1.name == "PyTest"
 
     def test_append_same_cell_twice_fails(self):
+        """Test failure."""
         p = ProductionLineGraph()
         p.new_cell(name="PyTest")
 
@@ -238,18 +308,21 @@ class TestProductionLineGraph:
             p.new_cell(name="PyTest")
 
     def test_instance_via_cell_number_works(self):
+        """Test instance via cell number."""
         n_cells = 10
         p = ProductionLineGraph.via_cell_number(n_cells=n_cells)
 
         assert len(p.cells) == n_cells
 
     def test_if_graph_exists(self):
+        """Test existence."""
         n_cells = 10
         p = ProductionLineGraph.via_cell_number(n_cells=n_cells)
 
         assert isinstance(p.graph, nx.DiGraph)
 
     def test_add_eol_cell(self):
+        """Test eol cell."""
         p = ProductionLineGraph()
         p.new_cell()
         p.new_cell(is_eol=True)
@@ -257,6 +330,7 @@ class TestProductionLineGraph:
         assert isinstance(p.eol_cell, ProcessCell)
 
     def test_add_eol_cell_twice_fails(self):
+        """Test eol twice fails."""
         p = ProductionLineGraph()
         p.new_cell(is_eol=True)
 
@@ -269,6 +343,7 @@ class TestProductionLineGraph:
         ids=["some edges", "zero edges", "all edges"],
     )
     def test_connect_cells_works_with_single_cell(self, n_nodes, forward_prob):
+        """Test connect."""
         # Arrange
         p = ProductionLineGraph()
         p.new_cell(name="C1")
@@ -305,6 +380,12 @@ class TestProductionLineGraph:
         ],
     )
     def test_connect_cells_works_with_multiple_cells(self, n_nodes, forward_probs):
+        """Test connect with multiple cells.
+
+        Args:
+            n_nodes (_type_): _description_
+            forward_probs (_type_): _description_
+        """
         # Arrange
         p = ProductionLineGraph()
 
@@ -335,6 +416,12 @@ class TestProductionLineGraph:
         ids=["some edges", "zero edges", "all edges"],
     )
     def test_connect_cells_works_with_eol_cell(self, n_nodes, forward_prob):
+        """Test connect with eol.
+
+        Args:
+            n_nodes (_type_): _description_
+            forward_prob (_type_): _description_
+        """
         # Arrange
         p = ProductionLineGraph()
 
@@ -357,6 +444,7 @@ class TestProductionLineGraph:
         assert len(p.graph.edges) == no_of_expected_edges
 
     def test_connect_across_cells_manually(self):
+        """TEst manual connection."""
         n_nodes = 10
         prob = 0.1
         p = ProductionLineGraph()
@@ -376,6 +464,7 @@ class TestProductionLineGraph:
         assert len(p.graph.edges) == edges_in_C1 + edges_in_C2 + len(edgelist)
 
     def test_acyclicity_error(self):
+        """Test acycicity."""
         n_nodes = 5
         prob = 0.1
         p = ProductionLineGraph()
@@ -396,6 +485,7 @@ class TestProductionLineGraph:
             print(p.graph.edges)
 
     def test_ground_truth_visible(self):
+        """Test ground truth visible."""
         n_nodes = 5
         prob = 0.1
         p = ProductionLineGraph()
@@ -414,6 +504,8 @@ class TestProductionLineGraph:
         assert len(p._pairs_with_hidden_mediators()) == 0
 
     def test_ground_truth_hidden(self):
+        """TEst hidden gt."""
+        TWO = 2
         edges1 = [(1, 2), (2, 3)]
         edges2 = [(1, 3), (2, 3)]
         edges3 = [(1, 2), (2, 3)]
@@ -444,10 +536,13 @@ class TestProductionLineGraph:
         # {(C2_M1_1, C2_M1_2): C1_M1_3}
         assert p._pairs_with_hidden_confounders() == {("C2_M1_1", "C2_M1_2"): ["C1_M1_3"]}
 
-        assert p.ground_truth_visible.loc[("C2_M1_1", "C2_M1_2")] == 2
-        assert p.ground_truth_visible.loc[("C2_M1_2", "C2_M1_1")] == 2
+        assert p.ground_truth_visible.loc[("C2_M1_1", "C2_M1_2")] == TWO
+        assert p.ground_truth_visible.loc[("C2_M1_2", "C2_M1_1")] == TWO
 
     def test_input_cellgraph_directly(self):
+        """Test input directly."""
+        SIX = 6
+        FOUR = 4
         dag1 = nx.DiGraph([(0, 1), (1, 2)])
         dag2 = nx.DiGraph([(3, 4), (3, 5)])
 
@@ -457,20 +552,24 @@ class TestProductionLineGraph:
         testline.new_cell(name="Station2")
         testline.Station2.input_cellgraph_directly(graph=dag2)
 
-        assert testline.num_nodes == 6
-        assert testline.num_edges == 4
+        assert testline.num_nodes == SIX
+        assert testline.num_edges == FOUR
         assert testline.sparsity == pytest.approx(4 / math.comb(6, 2))
 
     def test_drf_size(self):
+        """TEst drf size."""
         testline = ProductionLineGraph()
         assert not testline.drf
 
     def test_drf_error(self):
+        """TEst drf error."""
         testline = ProductionLineGraph()
         with pytest.raises(ValueError):
             testline.sample_from_drf()
 
     def test_from_nx(self):
+        """Test from nx."""
+        TWO = 2
         nx_graph = nx.DiGraph(
             [("1", "2"), ("1", "3"), ("1", "4"), ("2", "5"), ("2", "6"), ("5", "6")]
         )
@@ -478,7 +577,7 @@ class TestProductionLineGraph:
         cell_mapper = {"cell1": ["1", "2", "3", "4"], "cell2": ["5", "6"]}
         pline_from_nx = ProductionLineGraph.from_nx(g=nx_graph, cell_mapper=cell_mapper)
 
-        assert len(pline_from_nx.cells) == 2
+        assert len(pline_from_nx.cells) == TWO
         assert set(pline_from_nx.cell1.nodes) == {
             "cell1_1",
             "cell1_2",
@@ -490,18 +589,30 @@ class TestProductionLineGraph:
             ProductionLineGraph.from_nx(pd_graph, cell_mapper=cell_mapper)
 
     def test_save_and_load_drf(self, tmp_path_factory):
+        """Test save and load.
+
+        Args:
+            tmp_path_factory (_type_): _description_
+        """
         basedir = tmp_path_factory.mktemp("data")
         filename = "drf.pkl"
 
         line1 = ProductionLineGraph()
-        line1.drf = np.array([[1, 2, 3]])
+        line1.drf = np.array([[1, 2, 3]])  # type: ignore
         line1.save_drf(filename=filename, location=basedir)
 
         line2 = ProductionLineGraph()
         line2.drf = ProductionLineGraph.load_drf(filename=filename, location=basedir)
-        assert np.array_equal(line2.drf, np.array([[1, 2, 3]]))
+        assert np.array_equal(line2.drf, np.array([[1, 2, 3]]))  # type: ignore
 
     def test_pickleability(self, tmp_path):
+        """Test pickle.
+
+        Args:
+            tmp_path (_type_): _description_
+        """
+        SEVEN = 7
+        TEN = 10
         # Arrange
         filename_path = os.path.join(tmp_path, "pline.pkl")
         pline = ProductionLineGraph()
@@ -523,10 +634,11 @@ class TestProductionLineGraph:
 
         # Assert
         assert new_edge in pline_reloaded.edges
-        assert len(pline.Station1.nodes) == 7
-        assert len(pline.Station2.nodes) == 10
+        assert len(pline.Station1.nodes) == SEVEN
+        assert len(pline.Station2.nodes) == TEN
 
     def test_copy(self):
+        """Test copy."""
         pline = ProductionLineGraph()
         pline.new_cell(name="Station1")
         pline.new_cell(name="Station2")
@@ -543,6 +655,7 @@ class TestProductionLineGraph:
         assert pline.cell_order == copyline.cell_order
 
     def test_within_edges_with_empty_cells_raises_error(self):
+        """Test error."""
         # Setup
         pline = ProductionLineGraph()
 
@@ -551,6 +664,7 @@ class TestProductionLineGraph:
             pline.within_adjacency
 
     def test_between_edges_with_empty_cells_raises_error(self):
+        """Test error."""
         # Setup
         pline = ProductionLineGraph()
 
@@ -559,6 +673,7 @@ class TestProductionLineGraph:
             print(pline.between_adjacency)
 
     def test_within_edges_adjacency_matrix(self):
+        """Test within amat."""
         # Setup
         nx_graph = nx.DiGraph(
             [("1", "2"), ("1", "3"), ("1", "4"), ("2", "5"), ("2", "6"), ("5", "6")]
@@ -583,9 +698,11 @@ class TestProductionLineGraph:
         assert (
             within_amat.loc["cell1_2", :].sum() == 0
             and pline.ground_truth.loc["cell1_2", :].sum() != 0
-        )
+        )  # type: ignore
 
     def test_between_edges_adjacency_matrix(self):
+        """Test between edges amat."""
+        TWO = 2
         # Setup
         nx_graph = nx.DiGraph(
             [("1", "2"), ("1", "3"), ("1", "4"), ("2", "5"), ("2", "6"), ("5", "6")]
@@ -599,13 +716,14 @@ class TestProductionLineGraph:
         # Assert
 
         assert (
-            between_amat.loc["cell1_2", :].sum() == 2
-            and pline.ground_truth.loc["cell1_2", :].sum() == 2
-        )
+            between_amat.loc["cell1_2", :].sum() == TWO
+            and pline.ground_truth.loc["cell1_2", :].sum() == TWO
+        )  # type: ignore
         assert between_amat.loc[pline.cell1.nodes, pline.cell1.nodes].sum().sum() == 0
         assert between_amat.loc[pline.cell2.nodes, pline.cell2.nodes].sum().sum() == 0
 
     def test_interventional_drf_error(self):
+        """Test interventional drf."""
         testline = ProductionLineGraph()
         with pytest.raises(ValueError):
             testline.sample_from_interventional_drf()

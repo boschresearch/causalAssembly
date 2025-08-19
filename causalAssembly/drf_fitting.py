@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -32,16 +34,18 @@ drf_r_package = importr("drf")
 
 
 class DRF:
-    """Wrapper around the corresponding R package:
+    """Wrapper around the corresponding R package.
+
     Distributional Random Forests (Cevid et al., 2020).
-    Closely adopted from their python wrapper."""
+    Closely adopted from their python wrapper.
+    """
 
     def __init__(self, **fit_params):
+        """Initialize DRF object."""
         self.fit_params = fit_params
 
-    def fit(self, X: pd.DataFrame, Y: pd.DataFrame):
-        """Fit DRF in order to estimate conditional
-        distribution P(Y|X=x).
+    def fit(self, X: pd.DataFrame, Y: pd.DataFrame | pd.Series):
+        """Fit DRF in order to estimate conditional distribution P(Y|X=x).
 
         Args:
             X (pd.DataFrame): Conditioning set.
@@ -88,9 +92,10 @@ class DRF:
 
 
 def fit_drf(graph: ProductionLineGraph | ProcessCell | DAG, data: pd.DataFrame):
-    """Fit distributional random forests to the
-    factorization implied by the current graph
+    """Fit distributional random forests to the factorization implied by the current graph.
+
     Args:
+        graph (ProductionLineGraph | ProcessCell | DAG): Graph to fit the DRF to.
         data (pd.DataFrame): Columns of dataframe need to match name and order of the graph
 
     Raises:

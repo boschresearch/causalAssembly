@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,11 +13,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import logging
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from itertools import repeat
+from typing import Any
 
 import lingam
 import networkx as nx
@@ -40,12 +43,15 @@ logger = logging.getLogger(__name__)
 
 
 class BenchMarker:
-    """Class to run causal discovery benchmarks. One instance can be
+    """Class to run causal discovery benchmarks.
+
+    One instance can be
     the basis for several benchmark runs based on the same settings
     with different data generator objects.
     """
 
     def __init__(self):
+        """Initializes the BenchMarker class."""
         self.algorithms: dict = {"snr": BenchMarker._fit_snr}
         self.collect_results: dict = {}
         self.num_runs: int
@@ -54,37 +60,37 @@ class BenchMarker:
         self.n_select: int
 
     def include_pc(self):
-        """Includes the PC-stable algorithm from the `causal-learn` package"""
+        """Includes the PC-stable algorithm from the `causal-learn` package."""
         logger.info("PC algorithm added to benchmark routines.")
         self.algorithms["pc"] = BenchMarker._fit_pc
 
     def include_ges(self):
-        """Includes GES from the `causal-learn` package"""
+        """Includes GES from the `causal-learn` package."""
         logger.info("GES algorithm added to benchmark routines.")
         self.algorithms["ges"] = BenchMarker._fit_ges
 
     def include_notears(self):
-        """Includes the NOTEARS algorithm from the `gcastle` package"""
+        """Includes the NOTEARS algorithm from the `gcastle` package."""
         logger.info("NOTEARS added to benchmark routines.")
         self.algorithms["notears"] = BenchMarker._fit_notears
 
     def include_grandag(self):
-        """Includes the Gran-DAG algorithm from the `gcastle` package"""
+        """Includes the Gran-DAG algorithm from the `gcastle` package."""
         logger.info("Gran-DAG added to benchmark routines.")
         self.algorithms["grandag"] = BenchMarker._fit_grandag
 
     def include_score(self):
-        """Includes the SCORE algorithm from the `dodiscovery` package"""
+        """Includes the SCORE algorithm from the `dodiscovery` package."""
         logger.info("SCORE algorithm added to benchmark routines.")
         self.algorithms["score"] = BenchMarker._fit_score
 
     def include_das(self):
-        """Includes the DAS algorithm from the `dodiscovery` package"""
+        """Includes the DAS algorithm from the `dodiscovery` package."""
         logger.info("DAS algorithm added to benchmark routines.")
         self.algorithms["das"] = BenchMarker._fit_das
 
     def include_lingam(self):
-        """Includes the DirectLiNGAM algorithm from the `lingam` package"""
+        """Includes the DirectLiNGAM algorithm from the `lingam` package."""
         logger.info("Direct LiNGAM added to benchmark routines.")
         self.algorithms["lingam"] = BenchMarker._fit_lingam
 
@@ -112,7 +118,7 @@ class BenchMarker:
                 if causal_learn_graph[row, col] == -1 and causal_learn_graph[col, row] == -1:
                     amat[row, col] = amat[col, row] = 1
                 if causal_learn_graph[row, col] == 1 and causal_learn_graph[col, row] == 1:
-                    logger.warning(f"ambiguity found in {(row,col)}. I'll make it bidirected")
+                    logger.warning(f"ambiguity found in {(row, col)}. I'll make it bidirected")
                     amat[row, col] = amat[col, row] = 1
         return amat
 
@@ -131,9 +137,12 @@ class BenchMarker:
     # Beware of the Simulated DAG! Causal Discovery Benchmarks May Be Easy To Game.
     @staticmethod
     def _fit_snr(data: pd.DataFrame) -> pd.DataFrame:
-        """Take n x d data, order nodes by marginal variance and
+        """SNR algo.
+
+        Take n x d data, order nodes by marginal variance and
         regresses each node onto those with lower variance, using
-        edge coefficients as structure estimates."""
+        edge coefficients as structure estimates.
+        """
         X = data.to_numpy()
         LR = LinearRegression()
         LL = LassoLarsIC(criterion="bic")
@@ -158,10 +167,13 @@ class BenchMarker:
     # Beware of the Simulated DAG! Causal Discovery Benchmarks May Be Easy To Game.
     @staticmethod
     def varsortability(data: pd.DataFrame, ground_truth: pd.DataFrame, tol=1e-9):
-        """Takes n x d data and a d x d adjaceny matrix,
+        """Varsortability algo.
+
+        Takes n x d data and a d x d adjaceny matrix,
         where the i,j-th entry corresponds to the edge weight for i->j,
         and returns a value indicating how well the variance order
-        reflects the causal order."""
+        reflects the causal order.
+        """
         X = data.to_numpy()
         W = ground_truth.to_numpy()
         E = W != 0
@@ -226,7 +238,7 @@ class BenchMarker:
     def run_benchmark(
         self,
         runs: int,
-        prod_obj: ProductionLineGraph | ProcessCell,
+        prod_obj: ProductionLineGraph,
         n_select: int = 500,
         harmonize_via: str | None = "cpdag_transform",
         size_threshold: int = 50,
@@ -252,11 +264,24 @@ class BenchMarker:
                 `"best_dag_shd"` is selected, all DAGs in the implied MEC will be enumerated, the
                 SHD calculated and the lowest (best) candidate DAG chosen. Defaults to
                 "cpdag_transform".
+            size_threshold (int) : size of threshold.
             parallelize (bool, optional): Whether to run on parallel processes. Defaults to False.
             n_workers (int, optional): If `parallelize = True` you need to assign the number
                 of workers to prarallelize over. Defaults to 4.
             seed_sequence (int, optional): If `parallelize = True` you may choose the seed sequence
                 handed down to every parallel process. Defaults to 1234.
+            chunksize (int | None): If `parallelize = True` you may choose the
+                chunksize for the parallelization. If `None`, it will be set to
+                `runs / n_workers` or 1, whichever is larger. Defaults to None.
+            external_dfs (list[pd.DataFrame | np.ndarray] | None, optional):
+                If you want to use external dataframes for the benchmark runs, you can pass a list
+                of dataframes or numpy arrays here. The length of the list must match the number of
+                runs. If `None`, the `prod_obj` will be used to sample data.
+                Defaults to None.
+            between_and_within_results (bool, optional): If `True`, the benchmark will also
+                return the within and between metrics for the `prod_obj` if it is a
+                `ProductionLineGraph`. If `False`, only the metrics for the overall graph will be
+                returned. Defaults to False.
         """
         self.num_runs = runs
         self.prod_object = prod_obj
@@ -359,9 +384,9 @@ class BenchMarker:
 
     @staticmethod
     def single_run(
-        new_seed: np.random.BitGenerator | None,
-        prod_obj: ProductionLineGraph | ProcessCell,
-        algorithms: list[str],
+        new_seed: int | None,
+        prod_obj: ProductionLineGraph,
+        algorithms: dict[str, Any],
         child_seed: None | np.random.SeedSequence = None,
         harmonize_via: None | str = "cpdag_transform",
         n_select: int = 500,
@@ -369,29 +394,37 @@ class BenchMarker:
         external_df: pd.DataFrame | np.ndarray | None = None,
         between_and_within_results: bool = False,
     ):
-        """Single benchmark run
+        """Single benchmark run.
 
         Args:
-            new_seed (np.random.BitGenerator | None): seed
-            prod_obj (ProductionLineGraph | ProcessCell): object of interest
-            algorithms (list[str]): cd algs
-            child_seed (None | np.random.SeedSequence, optional): Defaults to None.
-            harmonize_via (None | str, optional): Defaults to "cpdag_transform".
-            n_select (int, optional): Defaults to 500.
-            size_threshold (int, optional): Defaults to 50.
+            new_seed (int | None): _description_
+            prod_obj (ProductionLineGraph): _description_
+            algorithms (dict[str, Any]): _description_
+            child_seed (None | np.random.SeedSequence, optional): _description_. Defaults to None.
+            harmonize_via (None | str, optional): _description_. Defaults to "cpdag_transform".
+            n_select (int, optional): _description_. Defaults to 500.
+            size_threshold (int, optional): _description_. Defaults to 50.
+            external_df (pd.DataFrame | np.ndarray | None, optional):
+                _description_. Defaults to None.
+            between_and_within_results (bool, optional): _description_. Defaults to False.
 
         Raises:
-            AssertionError
-            AssertionError
-            TypeError
+            AssertionError: _description_
+            AssertionError: _description_
+            TypeError: _description_
+            AssertionError: _description_
 
         Returns:
-            dict: results from that run.
+            _type_: _description_
         """
         metrics = defaultdict(partial(defaultdict, list))
         within_between_metrics = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-        if child_seed:
-            prod_obj.random_state = np.random.default_rng(seed=child_seed[new_seed])
+        if child_seed is not None:
+            num_seeds = 10
+            child_seeds = child_seed.spawn(num_seeds)
+            if new_seed is None:
+                new_seed = 0  # Or some default
+                prod_obj.random_state = np.random.default_rng(child_seeds[new_seed])
 
         if external_df is not None:
             if isinstance(external_df, pd.DataFrame):
@@ -428,7 +461,9 @@ class BenchMarker:
                                 dag_metrics = DAGmetrics(truth=prod_obj.graph, est=dag)
                                 all_shds.append(dag_metrics._shd())
 
-                            absolute_distance_to_mean = np.abs(all_shds - np.mean(all_shds))
+                            absolute_distance_to_mean = np.abs(
+                                np.array(all_shds) - np.mean(all_shds)
+                            )
                             random_index_choice = np.random.choice(
                                 np.flatnonzero(
                                     absolute_distance_to_mean == np.min(absolute_distance_to_mean)
@@ -444,18 +479,17 @@ class BenchMarker:
                     ground_truth, pd.DataFrame
                 ):
                     raise AssertionError("something went wrong in the best DAG selection")
-            else:
-                if type(ground_truth) is not type(result):
-                    raise TypeError("ground truth and results need to have the same instance.")
+            elif type(ground_truth) is not type(result):
+                raise TypeError("ground truth and results need to have the same instance.")
 
             get_metrics = DAGmetrics(truth=ground_truth, est=result)
-            get_metrics.collect_metrics()
+            my_metrics = get_metrics.collect_metrics()
             if harmonize_via == "best_dag_shd":
                 target_dag = prod_obj.graph
                 result_dag = nx.from_pandas_adjacency(df=result, create_using=nx.DiGraph)
-                get_metrics.metrics["sid"] = int(SID(target=target_dag, pred=result_dag))
+                my_metrics["sid"] = int(SID(target=target_dag, pred=result_dag))
             if harmonize_via == "cpdag_transform":
-                get_metrics.metrics["shd"] = get_metrics._shd(count_anticausal_twice=False)
+                my_metrics["shd"] = get_metrics._shd(count_anticausal_twice=False)
 
             if between_and_within_results and harmonize_via == "best_dag_shd":
                 if isinstance(prod_obj, ProcessCell):
@@ -473,24 +507,24 @@ class BenchMarker:
                 get_within_metrics = DAGmetrics(
                     truth=within_metrics, est=result_plg.within_adjacency
                 )
-                get_within_metrics.collect_metrics()
+                within_metrics = get_within_metrics.collect_metrics()
 
                 get_between_metrics = DAGmetrics(
                     truth=between_metrics, est=result_plg.between_adjacency
                 )
-                get_between_metrics.collect_metrics()
+                between_metrics = get_between_metrics.collect_metrics()
 
                 # make dict
-                w_b_dict = {"within": get_within_metrics, "between": get_between_metrics}
+                w_b_dict = {"within": within_metrics, "between": between_metrics}
 
                 for metric_name in ["precision", "recall"]:
                     for which_one, dct in w_b_dict.items():
                         within_between_metrics[alg_name][metric_name][which_one].append(
-                            dct.metrics[metric_name]
+                            dct[metric_name]
                         )
 
-            for metric_name, _ in get_metrics.metrics.items():
-                metrics[alg_name][metric_name].append(get_metrics.metrics[metric_name])
+            for metric_name, _ in my_metrics.items():
+                metrics[alg_name][metric_name].append(my_metrics[metric_name])
 
         if between_and_within_results:
             return {
@@ -503,7 +537,7 @@ class BenchMarker:
 
 
 def causallearn2amat(causal_learn_graph: np.ndarray) -> np.ndarray:
-    """Causallearn object helper function
+    """Causallearn object helper function.
 
     Args:
         causal_learn_graph (np.ndarray): causal lean output graph
@@ -522,8 +556,7 @@ def causallearn2amat(causal_learn_graph: np.ndarray) -> np.ndarray:
 
 
 def to_dag_amat(cpdag_amat: pd.DataFrame) -> pd.DataFrame:
-    """Turns PDAG into random member of the corresponding
-    Markov equivalence class.
+    """Turns PDAG into random member of the corresponding Markov equivalence class.
 
     Args:
         cpdag_amat (pd.DataFrame): PDAG representing the MEC
@@ -531,7 +564,6 @@ def to_dag_amat(cpdag_amat: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DAG as member of MEC.
     """
-
     pdag = PDAG.from_pandas_adjacency(cpdag_amat)
     chosen_dag = pdag.to_dag()
     if not nx.is_directed_acyclic_graph(chosen_dag):

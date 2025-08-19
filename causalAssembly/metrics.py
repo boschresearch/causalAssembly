@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import copy
 
 import networkx as nx
@@ -21,6 +23,7 @@ import pandas as pd
 
 class DAGmetrics:
     """Class to calculate performance metrics for DAGs.
+
     Make sure that the ground truth and the estimated DAG have the same order of
     rows/columns. If these objects are nx.DiGraphs, make sure that graph.nodes()
     have the same oder or pass a new nodelist to the class when initiating. The
@@ -33,8 +36,19 @@ class DAGmetrics:
         self,
         truth: nx.DiGraph | pd.DataFrame | np.ndarray,
         est: nx.DiGraph | pd.DataFrame | np.ndarray,
-        nodelist: list = None,
+        nodelist: list[str] | None = None,
     ):
+        """Inits the DAGmetrics class.
+
+        Args:
+            truth (nx.DiGraph | pd.DataFrame | np.ndarray): _description_
+            est (nx.DiGraph | pd.DataFrame | np.ndarray): _description_
+            nodelist (list, optional): _description_. Defaults to None.
+
+        Raises:
+            TypeError: _description_
+            TypeError: _description_
+        """
         if not isinstance(truth, nx.DiGraph | pd.DataFrame | np.ndarray):
             raise TypeError("Ground truth graph has to be one of the permitted classes.")
 
@@ -47,7 +61,7 @@ class DAGmetrics:
         self.metrics = None
 
     def _calculate_scores(self):
-        """Calculate Precision, Recall and F1 and g score
+        """Calculate Precision, Recall and F1 and g score.
 
         Return:
         precision: float
@@ -59,8 +73,9 @@ class DAGmetrics:
         gscore: float
             max(0, (TP-FP))/(TP+FN)
         """
+        TWO = 2
         assert self.est.shape == self.truth.shape and self.est.shape[0] == self.est.shape[1]
-        TP = np.where((self.est + self.truth) == 2, 1, 0).sum(axis=1).sum()
+        TP = np.where((self.est + self.truth) == TWO, 1, 0).sum(axis=1).sum()
         TP_FP = self.est.sum(axis=1).sum()
         FP = TP_FP - TP
         TP_FN = self.truth.sum(axis=1).sum()
@@ -96,12 +111,13 @@ class DAGmetrics:
         metrics = self._calculate_scores()
         metrics["shd"] = self._shd()
         self.metrics = metrics
+        return metrics
 
     @classmethod
     def _convert_to_numpy(
         cls,
         graph: nx.DiGraph | pd.DataFrame | np.ndarray,
-        nodelist: list = None,
+        nodelist: list[str] | None = None,
     ):
         if isinstance(graph, np.ndarray):
             return copy.deepcopy(graph)

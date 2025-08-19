@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import itertools
 import logging
 
@@ -43,7 +45,6 @@ def merge_dags(
     Returns:
         nx.DiGraph: merged DAG
     """
-
     for old_node_name, new_node_name in mapping.items():
         if new_node_name not in target_dag.nodes():
             raise ValueError(f"{new_node_name} does not exist in target_dag")
@@ -74,7 +75,7 @@ def merge_dags(
 def merge_dags_via_edges(
     left_dag: nx.DiGraph,
     right_dag: nx.DiGraph,
-    edges: list[tuple] = None,
+    edges: list[tuple] | None = None,
     isolate_target_nodes: bool = False,
 ):
     """Merges two dags via a list of edges.
@@ -119,7 +120,6 @@ def merge_dags_via_edges(
 
     merged_dag = nx.compose(left_dag, right_dag)
 
-    # TODO experimental
     merged_dag.add_edges_from(edges, **{"connector": True})
 
     return merged_dag
@@ -143,7 +143,6 @@ def tuples_from_cartesian_product(l1: list, l2: list) -> list[tuple]:
         [(0,'a'), (0,'b'), (0,'c'), (1,'a'), (1,'b'), (1,'c'), (2,'a'), (2,'b'), (2,'c')]
 
     """
-    # TODO: This could take a long time for large graphs...
     return [
         (tail, head)
         for tail, head in itertools.product(
@@ -153,11 +152,15 @@ def tuples_from_cartesian_product(l1: list, l2: list) -> list[tuple]:
     ]
 
 
-def _bootstrap_sample(rng: np.random.Generator, data: np.array, size: int = None) -> np.array:
+def _bootstrap_sample(
+    rng: np.random.Generator, data: np.ndarray, size: int | None = None
+) -> np.ndarray:
     """Generate bootstrap sample, i.e.
+
     random sample with replacement of length `size` from 1-d array.
 
     Args:
+        rng (np.random.Generator): Random number generator
         data (np.array): 1-d array
         size (int, optional): Size of bootstrap sample. If set to `None`,
         we set size to length of input array

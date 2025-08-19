@@ -1,4 +1,19 @@
-"""DAG class"""
+"""DAG class.
+
+Copyright (c) 2023 Robert Bosch GmbH
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -19,16 +34,22 @@ logger = logging.getLogger(__name__)
 
 
 class DAG:
-    """
-    General class for dealing with directed acyclic graph i.e.
+    """General class for dealing with directed acyclic graph i.e.
+
     graphs that are directed and must not contain any cycles.
     """
 
     def __init__(
         self,
-        nodes: list | None = None,
-        edges: list[tuple] | None = None,
+        nodes: list[str] | list[int] | set[int | str] | None = None,
+        edges: list[tuple[str | int, str | int]] | set[tuple[str | int, str | int]] | None = None,
     ):
+        """Initialize DAG.
+
+        Args:
+            nodes (list | None, optional): _description_. Defaults to None.
+            edges (list[tuple] | None, optional): _description_. Defaults to None.
+        """
         if nodes is None:
             nodes = []
         if edges is None:
@@ -50,7 +71,6 @@ class DAG:
         self._edges.add((i, j))
 
         # Check if graph is acyclic
-        # TODO: Make check really after each edge is added?
         if not self.is_acyclic():
             raise ValueError(
                 "The edge set you provided \
@@ -63,6 +83,11 @@ class DAG:
 
     @property
     def random_state(self):
+        """Random state.
+
+        Returns:
+            _type_: _description_
+        """
         return self._random_state
 
     @random_state.setter
@@ -72,7 +97,7 @@ class DAG:
         self._random_state = r
 
     def add_edge(self, edge: tuple[str, str]):
-        """Add edge to DAG
+        """Add edge to DAG.
 
         Args:
             edge (tuple[str, str]): Edge to add
@@ -80,7 +105,7 @@ class DAG:
         self._add_edge(*edge)
 
     def add_edges_from(self, edges: list[tuple[str, str]]):
-        """Add multiple edges to DAG
+        """Add multiple edges to DAG.
 
         Args:
             edges (list[tuple[str, str]]): Edges to add
@@ -129,8 +154,7 @@ class DAG:
         return DAG(nodes=nodes, edges=edges)
 
     def is_adjacent(self, i: str, j: str) -> bool:
-        """Return True if the graph contains an directed
-        edge between i and j.
+        """Return True if the graph contains an directed edge between i and j.
 
         Args:
             i (str): node i.
@@ -142,9 +166,7 @@ class DAG:
         return (j, i) in self.edges or (i, j) in self.edges
 
     def is_clique(self, potential_clique: set) -> bool:
-        """
-        Check every pair of node X potential_clique is adjacent.
-        """
+        """Check every pair of node X potential_clique is adjacent."""
         return all(self.is_adjacent(i, j) for i, j in combinations(potential_clique, 2))
 
     def is_acyclic(self) -> bool:
@@ -167,7 +189,7 @@ class DAG:
             DAG
         """
         assert pd_amat.shape[0] == pd_amat.shape[1]
-        nodes = pd_amat.columns
+        nodes = list(pd_amat.columns)
 
         all_connections = []
         start, end = np.where(pd_amat != 0)
@@ -182,7 +204,7 @@ class DAG:
         return DAG(nodes=nodes, edges=dir_edges)
 
     def remove_edge(self, i: str, j: str):
-        """Removes edge in question
+        """Removes edge in question.
 
         Args:
             i (str): tail
@@ -199,10 +221,10 @@ class DAG:
         self._parents[j].discard(i)
 
     def remove_node(self, node):
-        """Remove a node from the graph"""
+        """Remove a node from the graph."""
         self._nodes.remove(node)
 
-        self._edges = {(i, j) for i, j in self._edges if i != node and j != node}
+        self._edges = {(i, j) for i, j in self._edges if node not in (i, j)}
 
         for child in self._children[node]:
             self._parents[child].remove(node)
@@ -215,8 +237,9 @@ class DAG:
 
     @property
     def adjacency_matrix(self) -> pd.DataFrame:
-        """Returns adjacency matrix where the i,jth
-        entry being one indicates that there is an edge
+        """Returns adjacency matrix.
+
+        The i,jth entry being one indicates that there is an edge
         from i to j. A zero indicates that there is no edge.
 
         Returns:
@@ -232,7 +255,7 @@ class DAG:
         return amat
 
     def vstructs(self) -> set:
-        """Retrieve v-structures
+        """Retrieve v-structures.
 
         Returns:
             set: set of all v-structures
@@ -246,7 +269,7 @@ class DAG:
         return vstructures
 
     def copy(self):
-        """Return a copy of the graph"""
+        """Return a copy of the graph."""
         return DAG(nodes=self._nodes, edges=self._edges)
 
     def show(self):
@@ -287,8 +310,7 @@ class DAG:
 
     @property
     def num_edges(self) -> int:
-        """Number of directed edges
-        in current DAG.
+        """Number of directed edges in current DAG.
 
         Returns:
             int: Number of directed edges
@@ -297,7 +319,7 @@ class DAG:
 
     @property
     def sparsity(self) -> float:
-        """Sparsity of the graph
+        """Sparsity of the graph.
 
         Returns:
             float: in [0,1]
@@ -307,8 +329,7 @@ class DAG:
 
     @property
     def edges(self) -> list[tuple]:
-        """Gives all directed edges in
-        current DAG.
+        """Gives all directed edges in current DAG.
 
         Returns:
             list[tuple]: List of directed edges.
@@ -318,6 +339,7 @@ class DAG:
     @property
     def causal_order(self) -> list[str]:
         """Returns the causal order of the current graph.
+
         Note that this order is in general not unique.
 
         Returns:
@@ -360,7 +382,7 @@ class DAG:
             raise TypeError("DAG must be of type nx.DiGraph")
         return DAG(nodes=list(nx_dag.nodes), edges=list(nx_dag.edges))
 
-    def save_drf(self, filename: str, location: str = None):
+    def save_drf(self, filename: str, location: str | Path | None = None):
         """Writes a drf dict to file. Please provide the .pkl suffix!
 
         Args:
@@ -368,8 +390,7 @@ class DAG:
             location (str, optional): path to file in case it's not located in
                 the current working directory. Defaults to None.
         """
-
-        if not location:
+        if location is None:
             location = Path().resolve()
 
         location_path = Path(location, filename)
@@ -391,10 +412,15 @@ class DAG:
         return _sample_from_drf(graph=self, size=size, smoothed=smoothed)
 
     def to_cpdag(self) -> PDAG:
+        """Conversion to CPDAG.
+
+        Returns:
+            PDAG: _description_
+        """
         return dag2cpdag(dag=self.to_networkx())
 
     @classmethod
-    def load_drf(cls, filename: str, location: str = None) -> dict:
+    def load_drf(cls, filename: str, location: str | Path | None = None) -> dict:
         """Loads a drf dict from a .pkl file into the workspace.
 
         Args:

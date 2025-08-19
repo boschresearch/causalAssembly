@@ -1,4 +1,5 @@
-""" Utility classes and functions related to causalAssembly.
+"""Utility classes and functions related to causalAssembly.
+
 Copyright (c) 2023 Robert Bosch GmbH
 
 This program is free software: you can redistribute it and/or modify
@@ -12,6 +13,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import random
 import string
 
@@ -24,8 +26,19 @@ from causalAssembly.metrics import DAGmetrics
 
 
 class TestDAGmetrics:
+    """Test metrics class.
+
+    Returns:
+        _type_: _description_
+    """
+
     @pytest.fixture(scope="class")
     def gt(self):
+        """Set up ground truth adjacency matrix.
+
+        Returns:
+            _type_: _description_
+        """
         names = list(string.ascii_lowercase)[0:5]
         temp_np = np.array(
             [
@@ -40,6 +53,11 @@ class TestDAGmetrics:
 
     @pytest.fixture(scope="class")
     def est(self):
+        """Set up estimated adjacency matrix.
+
+        Returns:
+            _type_: _description_
+        """
         names = list(string.ascii_lowercase)[0:5]
         temp_np = np.array(
             [
@@ -53,11 +71,23 @@ class TestDAGmetrics:
         return pd.DataFrame(temp_np, columns=names, index=names)
 
     def test_pd_input_works(self, gt, est):
+        """Test that the metrics class can be initialized with pandas DataFrames.
+
+        Args:
+            gt (_type_): _description_
+            est (_type_): _description_
+        """
         met = DAGmetrics(truth=gt, est=est)
         assert np.array_equal(met.truth, gt.to_numpy())
         assert np.array_equal(met.est, est.to_numpy())
 
     def test_nx_input_works(self, gt, est):
+        """Test that the metrics class can be initialized with networkx graphs.
+
+        Args:
+            gt (_type_): _description_
+            est (_type_): _description_
+        """
         gt_nx = nx.from_pandas_adjacency(gt, create_using=nx.DiGraph)
         est_nx = nx.from_pandas_adjacency(est, create_using=nx.DiGraph)
         met = DAGmetrics(truth=gt_nx, est=est_nx)
@@ -65,6 +95,12 @@ class TestDAGmetrics:
         assert np.array_equal(met.est, est.to_numpy())
 
     def test_pd_change_order(self, gt, est):
+        """Test that the metrics class can handle different node orders in input DataFrames.
+
+        Args:
+            gt (_type_): _description_
+            est (_type_): _description_
+        """
         nodelist = list(string.ascii_lowercase)[0:5]
         random.shuffle(nodelist)
         met = DAGmetrics(truth=gt, est=est, nodelist=nodelist)
@@ -72,6 +108,12 @@ class TestDAGmetrics:
         assert np.array_equal(met.est, est.reindex(nodelist)[nodelist].to_numpy())
 
     def test_nx_change_order(self, gt, est):
+        """Test that the metrics class can handle different node orders in networkx graphs.
+
+        Args:
+            gt (_type_): _description_
+            est (_type_): _description_
+        """
         nodelist = list(string.ascii_lowercase)[0:5]
         random.shuffle(nodelist)
 
@@ -83,11 +125,18 @@ class TestDAGmetrics:
         assert np.array_equal(met.est, est.reindex(nodelist)[nodelist].to_numpy())
 
     def test_metrics_values(self, gt, est):
-        met = DAGmetrics(truth=gt, est=est)
-        met.collect_metrics()
+        """Test the metrics values.
 
-        assert met.metrics["shd"] == 3
-        assert met.metrics["gscore"] >= 0 and met.metrics["gscore"] <= 1
-        assert met.metrics["f1"] >= 0 and met.metrics["f1"] <= 1
-        assert met.metrics["recall"] >= 0 and met.metrics["recall"] <= 1
-        assert met.metrics["precision"] >= 0 and met.metrics["precision"] <= 1
+        Args:
+            gt (_type_): _description_
+            est (_type_): _description_
+        """
+        THREE = 3
+        met = DAGmetrics(truth=gt, est=est)
+        met = met.collect_metrics()
+
+        assert met["shd"] == THREE
+        assert met["gscore"] >= 0 and met["gscore"] <= 1
+        assert met["f1"] >= 0 and met["f1"] <= 1
+        assert met["recall"] >= 0 and met["recall"] <= 1
+        assert met["precision"] >= 0 and met["precision"] <= 1
