@@ -36,7 +36,7 @@ utils = importr("utils")
 
 if not rpackages.isinstalled("drf"):
     # select a mirror for R packages
-    utils.chooseCRANmirror(ind=1)
+    utils.chooseCRANmirror(graphics=False)
     utils.install_packages("drf", repos="https://cloud.r-project.org/")
 
 drf_r_package = importr("drf")
