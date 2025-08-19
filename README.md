@@ -4,10 +4,12 @@
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
 This repo provides details regarding $\texttt{causalAssembly}$, a causal discovery benchmark data tool based on complex production data.
-Theoretical details and information regarding construction are presented in the [paper](https://arxiv.org/abs/2306.10816):
+Theoretical details and information regarding construction are presented in the [paper](https://proceedings.mlr.press/v236/gobler24a.html):
 
-    Göbler, K., Windisch, T., Pychynski, T., Sonntag, S., Roth, M., & Drton, M. causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery, to appear in Proceedings of the 3rd Conference on Causal Learning and Reasoning (CLeaR), 2024,
+    Göbler, K., Windisch, T., Drton, M., Pychynski, T., Roth, M., & Sonntag, S. (2024). causalAssembly: Generating Realistic Production Data for Benchmarking Causal Discovery. In Proceedings of the Third Conference on Causal Learning and Reasoning (pp. 609–642). PMLR.
+
 ## Authors
+
 * [Konstantin Goebler](mailto:konstantin.goebler@de.bosch.com)
 * [Steffen Sonntag](mailto:steffen.sonntag@de.bosch.com)
 
@@ -26,14 +28,13 @@ The package can be installed as follows
 
     pip install causalAssembly
 
-[comment]: <> (git+https://github.com/boschresearch/causalAssembly.git)
 
 ## <a name="using">How to use</a>
 
 This is how $\texttt{causalAssembly}$'s functionality may be used. Be sure to read the [documentation](https://boschresearch.github.io/causalAssembly/) for more in-depth details regarding available functions and classes.
 
 In case you want to train a distributional random forests yourself (see [how to semisynthetsize](#how-to-semisynthesize)),
-you need an R installation as well as the corresponding [drf](https://cran.r-project.org/web/packages/drf/index.html) R package.
+you need an R installation.
 Sampling has first been proposed in [[2]](#2).
 
 *Note*: For Windows users the python package [rpy2](https://github.com/rpy2/rpy2) might cause issues.
@@ -69,7 +70,9 @@ assembly_line.Station3.drf = fit_drf(assembly_line.Station3, data=assembly_line_
 station3_sample = assembly_line.Station3.sample_from_drf(size=n_select)
 
 ```
+
 ### <a name="Interventional data">Interventional data</a>
+
 In case you want to create interventional data, we currently support hard and soft interventions.
 For soft interventions we use `sympy`'s `RandomSymbol` class. Essentially, soft interventions should
 be declared by choosing your preferred random variable with associated distribution from [here](https://docs.sympy.org/latest/modules/stats.html#continuous-types). Simple examples include:
@@ -158,7 +161,6 @@ if nx.is_directed_acyclic_graph(s_graph):
 
 ### <a name="how-to-rand">How to generate random production DAGs</a>
 
-
 The `ProductionLineGraph` class can further be used to generate completely random DAGs that follow an assembly line logic. Consider the following example:
 
 ```python
@@ -183,11 +185,10 @@ example_line.connect_cells(forward_probs= [.1])
 example_line.show()
 
 ```
+
 ### <a name="how-to-fcm">How to generate FCMs</a>
 
-
 $\texttt{causalAssembly}$ also allows creating structural causal models (SCM) or synonymously functional causal models (FCM). In particular, we employ symbolic programming to allow for a seamless interplay between readability and performance. The `FCM` class is completely general and inherits no production data logic. See the example below for construction and usage.
-
 
 ```python
 
@@ -279,6 +280,7 @@ Please feel free to contact one of the authors in case you wish to contribute.
 | [matplotlib](https://github.com/matplotlib/matplotlib) | [Other](https://github.com/matplotlib/matplotlib/tree/main/LICENSE)                 | Dependency |
 | [sympy](https://github.com/sympy/sympy)                | [BSD-3-Clause License](https://github.com/sympy/sympy/blob/master/LICENSE)          | Dependency |
 | [rpy2](https://github.com/rpy2/rpy2)                   | [GNU General Public License v2.0](https://github.com/rpy2/rpy2/blob/master/LICENSE) | Dependency |
+
 ### Development dependency
 
 | Name                                                            | License                                                                           | Type       |
