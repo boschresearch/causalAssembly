@@ -19,17 +19,26 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import rpy2.robjects as ro
-import rpy2.robjects.numpy2ri
-from rpy2.robjects import pandas2ri
+import rpy2.robjects.packages as rpackages
+from rpy2.robjects import numpy2ri, pandas2ri
+from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 from scipy.stats import gaussian_kde
 
 from causalAssembly.dag import DAG
 from causalAssembly.models_dag import ProcessCell, ProductionLineGraph
 
-rpy2.robjects.numpy2ri.activate()
-pandas2ri.activate()
+# Converter for numpy + pandas instead of using deprecated activate()
+R_CONVERTER = ro.default_converter + numpy2ri.converter + pandas2ri.converter
+
 base_r_package = importr("base")
+utils = importr("utils")
+
+if not rpackages.isinstalled("drf"):
+    # select a mirror for R packages
+    utils.chooseCRANmirror(ind=1)
+    utils.install_packages("drf", repos="https://cloud.r-project.org/")
+
 drf_r_package = importr("drf")
 
 
@@ -41,22 +50,24 @@ class DRF:
     """
 
     def __init__(self, **fit_params):
-        """Initialize DRF object."""
+        """Initialize the DRF object with fit parameters."""
         self.fit_params = fit_params
 
     def fit(self, X: pd.DataFrame, Y: pd.DataFrame | pd.Series):
         """Fit DRF in order to estimate conditional distribution P(Y|X=x).
 
         Args:
-            X (pd.DataFrame): Conditioning set.
-            Y (pd.DataFrame): Variable of interest (can be vector-valued).
+            X (pd.DataFrame): Predictor variables.
+            Y (pd.DataFrame | pd.Series): Response variable(s).
         """
         self.X_train = X
         self.Y_train = Y
 
-        X_r = ro.conversion.py2rpy(X)
-        Y_r = ro.conversion.py2rpy(Y)
-        self.r_fit_object = drf_r_package.drf(X_r, Y_r, **self.fit_params)
+        # Use localconverter
+        with localconverter(R_CONVERTER):
+            X_r = ro.conversion.py2rpy(X)
+            Y_r = ro.conversion.py2rpy(Y)
+            self.r_fit_object = drf_r_package.drf(X_r, Y_r, **self.fit_params)
 
     def produce_sample(
         self,
@@ -72,15 +83,18 @@ class DRF:
             n (int, optional): Number of n-samples to draw. Defaults to 1.
 
         Returns:
-            np.ndarray: New predicted samlpe of Y.
+            np.ndarray: New predicted sample of Y.
         """
-        newdata_r = ro.conversion.py2rpy(newdata)
-        r_output = drf_r_package.predict_drf(self.r_fit_object, newdata_r)
+        with localconverter(R_CONVERTER):
+            newdata_r = ro.conversion.py2rpy(newdata)
+            r_output = drf_r_package.predict_drf(self.r_fit_object, newdata_r)
 
-        weights = base_r_package.as_matrix(r_output[0])
+            # Convert back to Python
+            weights = ro.conversion.rpy2py(base_r_package.as_matrix(r_output[0]))
+            Y = ro.conversion.rpy2py(base_r_package.as_matrix(r_output[1]))
 
-        Y = pd.DataFrame(base_r_package.as_matrix(r_output[1]))
-        Y = Y.apply(pd.Series)
+        if not isinstance(Y, pd.DataFrame):
+            Y = pd.DataFrame(Y)
 
         sample = np.zeros((newdata.shape[0], Y.shape[1], n))
         for i in range(newdata.shape[0]):
@@ -98,17 +112,14 @@ def fit_drf(graph: ProductionLineGraph | ProcessCell | DAG, data: pd.DataFrame):
         graph (ProductionLineGraph | ProcessCell | DAG): Graph to fit the DRF to.
         data (pd.DataFrame): Columns of dataframe need to match name and order of the graph
 
-    Raises:
-        ValueError: Raises error if columns don't meet this requirement
+    Raises: ValueError: Raises error if columns don't meet this requirement
 
-    Returns:
-        (dict): dict of fitted DRFs.
+    Returns: (dict): dict of fitted DRFs.
     """
     tempdata = data.copy()
 
     if set(graph.nodes).issubset(tempdata.columns):
         tempdata = tempdata[graph.nodes]
-
     else:
         raise ValueError("Data columns don't match node names.")
 
@@ -118,9 +129,8 @@ def fit_drf(graph: ProductionLineGraph | ProcessCell | DAG, data: pd.DataFrame):
         if not parents:
             drf_dict[node] = gaussian_kde(tempdata[node].to_numpy())
         elif parents:
-            drf_object = DRF(
-                min_node_size=15, num_trees=2000, splitting_rule="FourierMMD"
-            )  # default setting as suggested in the paper
+            # default setting as suggested in the paper
+            drf_object = DRF(min_node_size=15, num_trees=2000, splitting_rule="FourierMMD")
             X = tempdata[parents]
             Y = tempdata[node]
             drf_object.fit(X, Y)
